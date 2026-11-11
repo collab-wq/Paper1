@@ -1,0 +1,28 @@
+name: MATLAB cloud verification
+
+on:
+  push:
+    branches: [work]
+  workflow_dispatch:
+
+jobs:
+  matlab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MATLAB and Signal Processing Toolbox
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Verify MATLAB functions
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); verify_matlab_cloud"
+      - name: Save verification logs and results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matlab-verification
+          path: results/matlab-verification/
+          if-no-files-found: warn
