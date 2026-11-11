@@ -10,12 +10,11 @@ for bearing in K001 KA04 KI04; do
     "https://groups.uni-paderborn.de/kat/BearingDataCenter/${bearing}.rar" \
     --output "$archive"
   sha256sum "$archive"
-  7z t "$archive" | tail -3
-  7z e -y -o"$target" "$archive" \
+  unar -quiet -no-directory -output-directory "$target" "$archive" \
     "${bearing}/N15_M07_F10_${bearing}_1.mat" \
     "${bearing}/N15_M07_F10_${bearing}_2.mat" \
-    "${bearing}/N15_M07_F10_${bearing}_3.mat" >/dev/null
-  7z e -y -o"$target" "$archive" '*.pdf' >/dev/null || true
+    "${bearing}/N15_M07_F10_${bearing}_3.mat" \
+    "${bearing}/measuring_log_${bearing}.pdf"
   ls -lh "$target"
   rm "$archive"
 done

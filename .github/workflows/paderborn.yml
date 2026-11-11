@@ -19,7 +19,7 @@ jobs:
       - name: Install RAR and PDF readers
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq p7zip-full poppler-utils
+          sudo apt-get install -y -qq unar poppler-utils
       - name: Download selected official recordings
         run: bash scripts/download_paderborn.sh
       - name: Inspect bearing fact sheets
