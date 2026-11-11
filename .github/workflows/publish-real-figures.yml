@@ -1,0 +1,36 @@
+name: Publish executed real-data figures
+on:
+  push:
+    branches: [work]
+    paths:
+      - .github/workflows/publish-real-figures.yml
+permissions:
+  contents: write
+  actions: read
+jobs:
+  figures:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: paderborn-results
+          run-id: 42999351710
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/paderborn-results
+      - uses: actions/download-artifact@v4
+        with:
+          name: xjtu-results
+          run-id: 42999351656
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: /tmp/xjtu-results
+      - name: Keep representative executed plots
+        run: |
+          mkdir -p figures
+          cp "$(find /tmp/paderborn-results -path '*/N15_M07_F10_KA04_3-start128001/paper_figure.png' -print -quit)" figures/paderborn-ka04.png
+          cp "$(find /tmp/xjtu-results -path '*/Bearing1_1-123-start4097/paper_figure.png' -print -quit)" figures/xjtu-bearing1_1-late.png
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add figures
+          git commit -m 'Add executed real-bearing paper figures'
+          git push origin HEAD:work

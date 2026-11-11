@@ -11,6 +11,8 @@ main_Paper1('synthetic')
 main_Paper1('cwru','input/cwru/130.mat')
 main_Paper1('cwru','input/cwru/130.mat',4097)
 main_Paper1('cwru','input/cwru/130.mat',8193)
+main_Paper1('paderborn','input/paderborn/KA04/N15_M07_F10_KA04_1.mat',64001)
+main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_1/123.csv',4097)
 ```
 
 ## 离散步骤
