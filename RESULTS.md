@@ -4,7 +4,7 @@
 
 GitHub Actions 在 Ubuntu 24.04 上通过 MathWorks 官方 `setup-matlab@v3` 安装 MATLAB R2026b Update 1（26.2.0.3433840）和 Signal Processing Toolbox；`run-command@v3` 执行了最小测试。`hilbert`、`wvd` 路径均可解析，256 点双频实信号得到 256×512 WVD，所有值有限。测试日志、JSON 与 MAT 结果在 [首次环境验证运行及 Artifact](https://github.com/collab-wq/Paper1/actions/runs/42977349694) 中。
 
-最新三类真实故障记录与合成信号的运行：[GitHub Actions 42979728536](https://github.com/collab-wq/Paper1/actions/runs/42979728536)，Artifact `matlab-results`（ID `13837355762`）包含每项实验的 `experiment.log`、`result.json` 和 `paper_figure.png`，以及 MATLAB 环境测试、四份 MAT 文件校验结果。运行分支为 `work`。
+最终三类真实故障记录、外圈故障三段重复实验及合成信号的运行：[GitHub Actions 42980685605](https://github.com/collab-wq/Paper1/actions/runs/42980685605)，Artifact `matlab-results`（ID `13837352754`）包含每项实验的 `experiment.log`、`result.json` 和 `paper_figure.png`，以及 MATLAB 环境测试、四份 MAT 文件校验结果。运行分支为 `work`。
 
 ## CWRU 原始数据核对
 
@@ -42,6 +42,14 @@ MAT 文件包含振动通道和转速，不包含采样率字段。故障三文�
 | `118.mat` 滚动体 | BSF 141.09 Hz | 138.06 Hz / 4.89 | 113.16 Hz / 6.02 | 1794.7–2144.7；3172.3–3522.3 |
 | `130.mat` 外圈 | BPFO 107.31 Hz | 107.67 Hz / 64.57 | 107.67 Hz / 66.84 | 2603.7–2953.7；3236.8–3586.8 |
 
-`130.mat` 给出本论文最清楚的单一应用：外圈 6 点位置故障冲击节律识别。时间方向从 WVD 检出 17 个候选冲击，其中相邻候选的中位间隔约 9.31 ms，对应约 107.4 Hz；其间有一处约 18.5 ms 的漏检间隔。理论 BPFO 周期为 9.32 ms；WVD 活动谱峰与理论值相差约 0.36 Hz。融合输出保留两个共振带的周期性结构，并使该频率的谱背景对比从 64.57 增至 66.84。外圈结果图见 [figures/cwru-130.png](figures/cwru-130.png)。`118.mat` 融合谱峰落在目标搜索窗下缘，不用于论文主结论。
+`130.mat` 给出本论文最清楚的单一应用：外圈 6 点位置故障冲击节律识别。理论 BPFO 周期为 9.32 ms。除首段外，又以完全相同的参数分析起始样本 4097、8193 的两个不重叠 2048 点片段：
+
+| 起始样本 | 候选冲击数 | 相邻候选中位间隔 | 原始谱峰 / 对比度 | 融合谱峰 / 对比度 |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 17 | 约 9.31 ms | 107.67 Hz / 64.57 | 107.67 Hz / 66.84 |
+| 4097 | 17 | 约 9.31 ms | 107.67 Hz / 61.30 | 107.30 Hz / 53.47 |
+| 8193 | 19 | 约 9.30 ms | 107.30 Hz / 60.25 | 107.30 Hz / 97.38 |
+
+三个片段的候选间隔与 107.31 Hz 理论 BPFO 一致，融合活动谱峰距理论值不超过 0.36 Hz。第一、二段各有一处约 18.5 ms 的候选漏检间隔；第三段的连续候选间隔均约 9.2–9.4 ms。融合保留两个共振带的周期结构；谱峰背景对比在第一、三段提高，在第二段下降。外圈主结果图见 [figures/cwru-130.png](figures/cwru-130.png)，其余两段的图与 JSON 均在 Artifact。`118.mat` 融合谱峰落在目标搜索窗下缘，不用于论文主结论。
 
 图中的 `Original WVD`、两个检测图、融合分数与输出 WVD来自同一原始信号。合成图的自项真值只用于展示和指标评价。实验未使用外部方法 baseline、输入信号带通或模态分解。

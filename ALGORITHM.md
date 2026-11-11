@@ -9,6 +9,8 @@ MATLAB 主入口：
 ```matlab
 main_Paper1('synthetic')
 main_Paper1('cwru','input/cwru/130.mat')
+main_Paper1('cwru','input/cwru/130.mat',4097)
+main_Paper1('cwru','input/cwru/130.mat',8193)
 ```
 
 ## 离散步骤
