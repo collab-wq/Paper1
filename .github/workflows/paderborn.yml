@@ -1,0 +1,45 @@
+name: Paderborn MATLAB experiments
+
+on:
+  push:
+    branches: [work]
+    paths:
+      - .github/workflows/paderborn.yml
+      - main_Paper1.m
+      - matlab/**
+      - scripts/download_paderborn.sh
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install RAR and PDF readers
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq p7zip-full poppler-utils
+      - name: Download selected official recordings
+        run: bash scripts/download_paderborn.sh
+      - name: Inspect bearing fact sheets
+        run: |
+          for pdf in input/paderborn/*/*.pdf; do
+            echo "FACT_SHEET $pdf"
+            pdftotext -layout "$pdf" - | head -90
+          done
+      - name: Install MATLAB and Signal Processing Toolbox
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Inspect MAT structure in MATLAB
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); inspect_paderborn"
+      - name: Save inspection evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paderborn-inspection
+          path: results/paderborn-inspection/
+          if-no-files-found: warn

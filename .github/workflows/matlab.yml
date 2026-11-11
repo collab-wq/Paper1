@@ -6,8 +6,9 @@ on:
     paths:
       - .github/workflows/matlab.yml
       - main_Paper1.m
-      - matlab/**
-      - scripts/**
+      - matlab/verify_matlab_cloud.m
+      - matlab/validate_cwru.m
+      - scripts/download_cwru.sh
   workflow_dispatch:
 
 permissions:
