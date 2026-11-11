@@ -11,9 +11,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  inspect:
+  experiment:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Install RAR and PDF readers
@@ -37,10 +37,14 @@ jobs:
         uses: matlab-actions/run-command@v3
         with:
           command: "addpath('matlab'); inspect_paderborn"
-      - name: Save inspection evidence
+      - name: Run original-WVD three-point detector on Paderborn pilot
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); run_paderborn_batch"
+      - name: Save MATLAB logs, figures, arrays, and metrics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: paderborn-inspection
-          path: results/paderborn-inspection/
+          name: paderborn-results
+          path: results/
           if-no-files-found: warn

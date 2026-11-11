@@ -1,6 +1,7 @@
 function result = main_Paper1(mode, dataFile, startIndex)
 % Paper1: direct-WVD dual-direction endpoint/midpoint/endpoint detector.
-% Usage: main_Paper1('synthetic') or main_Paper1('cwru','input/cwru/130.mat')
+% Usage: main_Paper1('synthetic'), main_Paper1('cwru',file), or
+%        main_Paper1('paderborn',file,startIndex)
 if nargin<1, mode='synthetic'; end
 if nargin<2, dataFile='input/cwru/130.mat'; end
 if nargin<3, startIndex=1; end
@@ -46,6 +47,19 @@ elseif strcmp(mode,'cwru')
     else
         outdir=fullfile('results',sprintf('cwru-%s-start%d',stem,startIndex));
     end
+elseif strcmp(mode,'paderborn')
+    [record,fs,rpm,forceN,torqueNm,channel]=read_paderborn(dataFile);
+    segmentN=4096;
+    assert(startIndex>=1 && startIndex+segmentN-1<=numel(record), ...
+        'Requested Paderborn segment is outside vibration record');
+    x=double(record(startIndex:startIndex+segmentN-1)); x=x(:);
+    p=struct('bands',[],'Lsec',0.004,'hopSec',0.001, ...
+        'spanHz',250,'sigmaHz',180,'excludeHz',700, ...
+        'freqAvgHz',400,'freqThr',0.10,'timeThr',0.08, ...
+        'activityThr',0.005,'maxPairDelaySec',0.06, ...
+        'minPeakDistanceSec',0.003);
+    [~,stem]=fileparts(dataFile);
+    outdir=fullfile('results','paderborn',sprintf('%s-start%d',stem,startIndex));
 else
     error('Unknown mode %s',mode);
 end
@@ -57,13 +71,28 @@ W=real(W); f=f(:); tw=tw(:); F=numel(f); T=numel(tw);
 df=median(diff(f)); dt=median(diff(tw));
 assert(isequal(size(W),[F,T]) && all(diff(f)>0));
 if isempty(p.bands)
-    profile=movmean(mean(max(W,0),2),max(3,round(80/df)));
-    eligible=f>=1500 & f<=min(4500,0.9*fs/2);
-    [pk,loc]=findpeaks(profile(eligible),f(eligible),'MinPeakDistance',600);
+    if strcmp(mode,'paderborn')
+        smoothHz=250; lowerHz=2000; upperHz=min(25000,0.9*fs/2);
+        minBandDistanceHz=1800; bandHalfwidthHz=450;
+    else
+        smoothHz=80; lowerHz=1500; upperHz=min(4500,0.9*fs/2);
+        minBandDistanceHz=600; bandHalfwidthHz=175;
+    end
+    profile=movmean(mean(max(W,0),2),max(3,round(smoothHz/df)));
+    eligible=f>=lowerHz & f<=upperHz;
+    [pk,loc]=findpeaks(profile(eligible),f(eligible), ...
+        'MinPeakDistance',minBandDistanceHz);
     [~,rank]=sort(pk,'descend');
     assert(numel(rank)>=2,'Two distinct WVD resonance bands not found');
     p.bands=sort(loc(rank(1:2)));
-    p.bands=[p.bands(:)-175,p.bands(:)+175];
+    p.bands=[p.bands(:)-bandHalfwidthHz,p.bands(:)+bandHalfwidthHz];
+end
+if strcmp(mode,'paderborn')
+    % The original signal is passed to wvd. This crops only the calculated
+    % WVD frequency grid, retaining both selected bands and their midpoints.
+    keep=f>=max(0,p.bands(1,1)-600) & ...
+        f<=min(fs/2,p.bands(2,2)+600);
+    W=W(keep,:); f=f(keep); F=numel(f);
 end
 fprintf('Mode %s, fs %g Hz, WVD %d x %d, bands [%.1f %.1f], [%.1f %.1f] Hz\n', ...
     mode,fs,F,T,p.bands(1,1),p.bands(1,2),p.bands(2,1),p.bands(2,2));
@@ -103,7 +132,7 @@ if strcmp(mode,'synthetic')
         100*result.intersection_metrics.intermode_cross_removed, ...
         result.intersection_metrics.nmse);
     plot_result(tw,f,W,Sf,St,Wout,outdir,[400 1250],Wauto,[]);
-else
+elseif strcmp(mode,'cwru')
     switch id
         case 105
             faultName='BPFI'; faultFactor=5.4152;
@@ -139,9 +168,98 @@ else
     evidence=struct('raw',activityRaw,'fused',activityOut, ...
         'dt',dt,'expected_hz',expected,'fault_name',faultName);
     plot_result(tw,f,W,Sf,St,Wout,outdir,[1000 min(4500,fs/2)],[],evidence);
+else
+    % Fault labels and theoretical frequencies enter only after WVD band
+    % selection, dual-direction detection, and reconstruction are complete.
+    if contains(stem,'_KA'), faultName='BPFO';
+    elseif contains(stem,'_KI'), faultName='BPFI';
+    else, faultName='healthy'; end
+    % Nominal 6203 geometry: 8 balls, 6.75 mm ball and 28.5 mm pitch
+    % diameter. The study reports up to 1–2% geometry variation by maker.
+    geometry=struct('balls',8,'ball_diameter_mm',6.75, ...
+        'pitch_diameter_mm',28.5,'contact_angle_deg',0);
+    ratio=geometry.ball_diameter_mm/geometry.pitch_diameter_mm;
+    bpfo=geometry.balls/2*(1-ratio)*rpm/60;
+    bpfi=geometry.balls/2*(1+ratio)*rpm/60;
+    selected=(f>=p.bands(1,1)&f<=p.bands(1,2)) | ...
+        (f>=p.bands(2,1)&f<=p.bands(2,2));
+    activityRaw=sum(max(W(selected,:),0),1)*df;
+    activityOut=sum(max(Wout(selected,:),0),1)*df;
+    [rawBpfo,rawBpfoContrast]=fault_evidence(activityRaw,dt,bpfo);
+    [outBpfo,outBpfoContrast]=fault_evidence(activityOut,dt,bpfo);
+    [rawBpfi,rawBpfiContrast]=fault_evidence(activityRaw,dt,bpfi);
+    [outBpfi,outBpfiContrast]=fault_evidence(activityOut,dt,bpfi);
+    result.file=dataFile; result.channel=channel;
+    result.start_sample=startIndex; result.end_sample=startIndex+numel(x)-1;
+    result.rpm=rpm; result.measured_force_N=forceN;
+    result.measured_torque_Nm=torqueNm;
+    result.nominal_geometry=geometry;
+    result.bpfo_hz=bpfo; result.bpfi_hz=bpfi;
+    result.fault_name=faultName;
+    result.raw_bpfo_peak_hz=rawBpfo;
+    result.fused_bpfo_peak_hz=outBpfo;
+    result.raw_bpfo_contrast=rawBpfoContrast;
+    result.fused_bpfo_contrast=outBpfoContrast;
+    result.raw_bpfi_peak_hz=rawBpfi;
+    result.fused_bpfi_peak_hz=outBpfi;
+    result.raw_bpfi_contrast=rawBpfiContrast;
+    result.fused_bpfi_contrast=outBpfiContrast;
+    if numel(peakIdx)>1
+        result.median_candidate_spacing_ms=1000*median(diff(tw(peakIdx)));
+    else
+        result.median_candidate_spacing_ms=NaN;
+    end
+    fprintf('Paderborn %s rpm %.2f, force %.1f N, torque %.3f Nm; nominal BPFO %.2f, BPFI %.2f Hz\n', ...
+        stem,rpm,forceN,torqueNm,bpfo,bpfi);
+    fprintf('BPFO raw %.2f / %.2f, fused %.2f / %.2f; BPFI raw %.2f / %.2f, fused %.2f / %.2f (peak Hz / contrast)\n', ...
+        rawBpfo,rawBpfoContrast,outBpfo,outBpfoContrast, ...
+        rawBpfi,rawBpfiContrast,outBpfi,outBpfiContrast);
+    if strcmp(faultName,'BPFI'), expected=bpfi;
+    else, expected=bpfo; end
+    evidence=struct('raw',activityRaw,'fused',activityOut, ...
+        'dt',dt,'expected_hz',expected,'fault_name',faultName);
+    plot_result(tw,f,W,Sf,St,Wout,outdir,[0 min(26000,fs/2)],[],evidence);
+    % Artifact grids are thinned only after all calculations. The full
+    % resolution input signal and published plot remain archived.
+    frequency_stride=4; time_stride=4;
+    fi=1:frequency_stride:numel(f); ti=1:time_stride:numel(tw);
+    archive=struct('signal',x,'fs_hz',fs,'frequency_hz',f(fi), ...
+        'time_s',tw(ti),'original_wvd',single(W(fi,ti)), ...
+        'frequency_detection',single(Sf(fi,ti)), ...
+        'time_detection',single(St(fi,ti)), ...
+        'geometric_fusion',single(fusion(fi,ti)), ...
+        'reconstructed_wvd',single(Wout(fi,ti)), ...
+        'frequency_stride',frequency_stride,'time_stride',time_stride, ...
+        'raw_activity',activityRaw,'fused_activity',activityOut);
+    save(fullfile(outdir,'experiment_arrays.mat'),'archive','-v7.3');
+    result.artifact_grid_stride=[frequency_stride,time_stride];
 end
 fid=fopen(fullfile(outdir,'result.json'),'w');
 assert(fid>0); fprintf(fid,'%s\n',jsonencode(result)); fclose(fid);
+end
+
+function [x,fs,rpm,forceN,torqueNm,channel]=read_paderborn(file)
+d=load(file); names=fieldnames(d);
+assert(numel(names)==1,'Expected one Paderborn measurement root');
+record=d.(names{1});
+assert(isfield(record,'Y') && isfield(record,'X'));
+yNames=string({record.Y.Name});
+v=find(yNames=="vibration_1",1);
+s=find(yNames=="speed",1);
+q=find(yNames=="force",1);
+m=find(yNames=="torque",1);
+assert(~isempty(v) && ~isempty(s) && ~isempty(q) && ~isempty(m), ...
+    'Official vibration/speed/force/torque channels missing');
+channel=char(yNames(v));
+x=record.Y(v).Data(:);
+time=double(record.X(record.Y(v).XIndex).Data(:));
+assert(numel(x)==numel(time) && numel(x)>64000);
+fs=1/median(diff(time));
+assert(abs(fs-64000)<100,'Vibration sampling rate disagrees with official 64 kHz');
+rpm=mean(double(record.Y(s).Data(:)));
+forceN=mean(double(record.Y(q).Data(:)));
+torqueNm=mean(double(record.Y(m).Data(:)));
+assert(rpm>500 && rpm<2500 && all(isfinite(x)));
 end
 
 function [Sf,St,Etime,peakIdx,pairCount]=dual_detector(W,f,tw,p)
