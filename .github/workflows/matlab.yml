@@ -26,7 +26,16 @@ jobs:
       - name: Evaluate soft two-direction fusion
         uses: matlab-actions/run-command@v3
         with:
-          command: "run('matlab/evaluate_fusion.m')"
+          command: "addpath('matlab'); evaluate_fusion"
+      - name: Download official CWRU outer-race fault record
+        run: |
+          mkdir -p input/cwru
+          curl -LfsS --retry 3 -o input/cwru/130.mat https://engineering.case.edu/sites/default/files/130.mat
+          echo '35a095307d0971477049b343a1b5981dde465a58fb7f233ad89b035068c1717d  input/cwru/130.mat' | sha256sum -c -
+      - name: Inspect CWRU WVD frequency candidates
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); probe_cwru"
       - name: Save verification logs and results
         if: always()
         uses: actions/upload-artifact@v4
