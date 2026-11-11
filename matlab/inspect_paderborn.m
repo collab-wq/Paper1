@@ -29,6 +29,26 @@ for k=1:numel(bearings)
                     end
                 end
             end
+            for q=1:numel(value.X)
+                item=value.X(q);
+                fprintf('X_CHANNEL %d name=%s unit=%s raster=%s data_size=%s\n', ...
+                    q,string(item.Name),string(item.Unit),string(item.Raster),mat2str(size(item.Data)));
+                if isnumeric(item.Data) && numel(item.Data)>1
+                    fprintf(' X_RANGE %.9g %.9g\n',double(item.Data(1)),double(item.Data(end)));
+                end
+            end
+            for q=1:numel(value.Y)
+                item=value.Y(q);
+                fprintf('Y_CHANNEL %d name=%s unit=%s raster=%s xindex=%s downsampling=%s data_size=%s\n', ...
+                    q,string(item.Name),string(item.Unit),string(item.Raster), ...
+                    mat2str(item.XIndex),mat2str(item.DownSampling),mat2str(size(item.Data)));
+                if isnumeric(item.Data) && ~isempty(item.Data)
+                    v=double(item.Data(:));
+                    fprintf(' Y_STATS mean=%.9g std=%.9g min=%.9g max=%.9g\n', ...
+                        mean(v),std(v),min(v),max(v));
+                end
+            end
+            disp(value.Description)
         end
     end
 end
