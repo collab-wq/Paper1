@@ -53,13 +53,18 @@ jobs:
           PY
       - name: Read official study tables and archive tools
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils p7zip-full
           curl -LfsS --retry 3 -o /tmp/paderborn-study.pdf https://mb.uni-paderborn.de/fileadmin-mb/kat/PDF/Veroeffentlichungen/20160703_PHME16_CM_bearing.pdf
           pdftotext -layout /tmp/paderborn-study.pdf /tmp/paderborn-study.txt
-          rg -n -i 'Table 5|Table 6|Table 4|KA04|KA15|KI04|KI14|sampling|64 kHz|64,000|accelerat' /tmp/paderborn-study.txt | head -90
-          sed -n '130,270p' /tmp/paderborn-study.txt | head -140
+          rg -n -i -C 12 'Table 5|Table 6|Table 4|KA04|KA15|KI04|KI14|sampling|64 kHz|64,000|accelerat' /tmp/paderborn-study.txt | head -320
           command -v 7z || true
           command -v bsdtar || true
           command -v unrar || true
+          curl -LfsS https://groups.uni-paderborn.de/kat/BearingDataCenter/readme_versions.txt
+          for bearing in K001 KA04 KI04; do
+            curl -sI "https://groups.uni-paderborn.de/kat/BearingDataCenter/${bearing}.rar" | rg -i 'HTTP/|content-length|last-modified|accept-ranges' || true
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
