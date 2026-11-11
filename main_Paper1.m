@@ -60,6 +60,22 @@ elseif strcmp(mode,'paderborn')
         'minPeakDistanceSec',0.003);
     [~,stem]=fileparts(dataFile);
     outdir=fullfile('results','paderborn',sprintf('%s-start%d',stem,startIndex));
+elseif strcmp(mode,'xjtu')
+    record=readmatrix(dataFile);
+    assert(size(record,2)==2 && size(record,1)==32768 && ...
+        all(isfinite(record(:))),'Invalid two-channel XJTU-SY snapshot');
+    fs=25600; rpm=2100; forceN=12000; torqueNm=NaN;
+    channel='Horizontal_vibration_signals';
+    segmentN=4096;
+    assert(startIndex>=1 && startIndex+segmentN-1<=size(record,1));
+    x=double(record(startIndex:startIndex+segmentN-1,1));
+    p=struct('bands',[],'Lsec',0.007,'hopSec',0.0015, ...
+        'spanHz',120,'sigmaHz',100,'excludeHz',350, ...
+        'freqAvgHz',200,'freqThr',0.10,'timeThr',0.08, ...
+        'activityThr',0.005,'maxPairDelaySec',0.12, ...
+        'minPeakDistanceSec',0.004);
+    [~,stem]=fileparts(dataFile);
+    outdir=fullfile('results','xjtu',sprintf('Bearing1_1-%s-start%d',stem,startIndex));
 else
     error('Unknown mode %s',mode);
 end
@@ -74,6 +90,9 @@ if isempty(p.bands)
     if strcmp(mode,'paderborn')
         smoothHz=250; lowerHz=2000; upperHz=min(25000,0.9*fs/2);
         minBandDistanceHz=1800; bandHalfwidthHz=450;
+    elseif strcmp(mode,'xjtu')
+        smoothHz=150; lowerHz=1200; upperHz=min(10000,0.9*fs/2);
+        minBandDistanceHz=1000; bandHalfwidthHz=250;
     else
         smoothHz=80; lowerHz=1500; upperHz=min(4500,0.9*fs/2);
         minBandDistanceHz=600; bandHalfwidthHz=175;
@@ -87,7 +106,7 @@ if isempty(p.bands)
     p.bands=sort(loc(rank(1:2)));
     p.bands=[p.bands(:)-bandHalfwidthHz,p.bands(:)+bandHalfwidthHz];
 end
-if strcmp(mode,'paderborn')
+if strcmp(mode,'paderborn') || strcmp(mode,'xjtu')
     % The original signal is passed to wvd. This crops only the calculated
     % WVD frequency grid, retaining both selected bands and their midpoints.
     keep=f>=max(0,p.bands(1,1)-600) & ...
@@ -171,13 +190,20 @@ elseif strcmp(mode,'cwru')
 else
     % Fault labels and theoretical frequencies enter only after WVD band
     % selection, dual-direction detection, and reconstruction are complete.
-    if contains(stem,'_KA'), faultName='BPFO';
-    elseif contains(stem,'_KI'), faultName='BPFI';
-    else, faultName='healthy'; end
-    % Nominal 6203 geometry: 8 balls, 6.75 mm ball and 28.55 mm pitch
-    % diameter. The study reports up to 1–2% geometry variation by maker.
-    geometry=struct('balls',8,'ball_diameter_mm',6.75, ...
-        'pitch_diameter_mm',28.55,'contact_angle_deg',0);
+    if strcmp(mode,'xjtu')
+        faultName='BPFO';
+        geometry=struct('balls',8,'ball_diameter_mm',7.92, ...
+            'pitch_diameter_mm',34.55,'contact_angle_deg',0);
+        rpmSource='nominal test condition';
+    else
+        if contains(stem,'_KA'), faultName='BPFO';
+        elseif contains(stem,'_KI'), faultName='BPFI';
+        else, faultName='healthy'; end
+        % Nominal 6203 geometry; study notes 1–2% maker variation.
+        geometry=struct('balls',8,'ball_diameter_mm',6.75, ...
+            'pitch_diameter_mm',28.55,'contact_angle_deg',0);
+        rpmSource='MAT speed channel mean';
+    end
     ratio=geometry.ball_diameter_mm/geometry.pitch_diameter_mm;
     bpfo=geometry.balls/2*(1-ratio)*rpm/60;
     bpfi=geometry.balls/2*(1+ratio)*rpm/60;
@@ -193,6 +219,14 @@ else
     result.start_sample=startIndex; result.end_sample=startIndex+numel(x)-1;
     result.rpm=rpm; result.measured_force_N=forceN;
     result.measured_torque_Nm=torqueNm;
+    result.rpm_source=rpmSource;
+    if strcmp(mode,'xjtu')
+        result.force_source='nominal 12 kN test condition';
+        result.nominal_force_N=forceN;
+        result.measured_force_N=NaN;
+    else
+        result.force_source='MAT force channel mean';
+    end
     result.nominal_geometry=geometry;
     result.bpfo_hz=bpfo; result.bpfi_hz=bpfi;
     result.fault_name=faultName;
@@ -209,8 +243,8 @@ else
     else
         result.median_candidate_spacing_ms=NaN;
     end
-    fprintf('Paderborn %s rpm %.2f, force %.1f N, torque %.3f Nm; nominal BPFO %.2f, BPFI %.2f Hz\n', ...
-        stem,rpm,forceN,torqueNm,bpfo,bpfi);
+    fprintf('%s %s rpm %.2f, force %.1f N, torque %.3f Nm; nominal BPFO %.2f, BPFI %.2f Hz\n', ...
+        mode,stem,rpm,forceN,torqueNm,bpfo,bpfi);
     fprintf('BPFO raw %.2f / %.2f, fused %.2f / %.2f; BPFI raw %.2f / %.2f, fused %.2f / %.2f (peak Hz / contrast)\n', ...
         rawBpfo,rawBpfoContrast,outBpfo,outBpfoContrast, ...
         rawBpfi,rawBpfiContrast,outBpfi,outBpfiContrast);
@@ -218,7 +252,9 @@ else
     else, expected=bpfo; end
     evidence=struct('raw',activityRaw,'fused',activityOut, ...
         'dt',dt,'expected_hz',expected,'fault_name',faultName);
-    plot_result(tw,f,W,Sf,St,Wout,outdir,[0 min(26000,fs/2)],[],evidence);
+    plotLimits=[max(0,p.bands(1,1)-600) ...
+        min(fs/2,p.bands(2,2)+600)];
+    plot_result(tw,f,W,Sf,St,Wout,outdir,plotLimits,[],evidence);
     % Artifact grids are thinned only after all calculations. The full
     % resolution input signal and published plot remain archived.
     frequency_stride=4; time_stride=4;

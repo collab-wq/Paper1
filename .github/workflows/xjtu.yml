@@ -46,12 +46,21 @@ jobs:
           with open('input/xjtu-sy/csv_validation.json','w') as f:
               json.dump(report,f,indent=2)
           PY
+      - name: Install MATLAB and Signal Processing Toolbox
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run early, middle, and late original-WVD analysis
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); run_xjtu_batch"
       - name: Save source and validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: xjtu-source-validation
+          name: xjtu-results
           path: |
             input/xjtu-sy/provenance.json
             input/xjtu-sy/csv_validation.json
+            results/xjtu/
           if-no-files-found: warn
