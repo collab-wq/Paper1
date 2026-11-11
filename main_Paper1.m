@@ -95,7 +95,17 @@ if strcmp(mode,'synthetic')
         result.intersection_metrics.nmse);
     plot_result(tw,f,W,Sf,St,Wout,outdir,[400 1250],Wauto);
 else
-    expected=3.5848*rpm/60;
+    switch id
+        case 105
+            faultName='BPFI'; faultFactor=5.4152;
+        case 118
+            faultName='BSF'; faultFactor=4.7135;
+        case 130
+            faultName='BPFO'; faultFactor=3.5848;
+        otherwise
+            error('Fault-frequency evidence is specified for 105, 118, 130 only');
+    end
+    expected=faultFactor*rpm/60;
     selected=(f>=p.bands(1,1)&f<=p.bands(1,2)) | ...
         (f>=p.bands(2,1)&f<=p.bands(2,2));
     activityRaw=sum(max(W(selected,:),0),1)*df;
@@ -103,13 +113,14 @@ else
     [peakRaw,contrastRaw]=fault_evidence(activityRaw,dt,expected);
     [peakOut,contrastOut]=fault_evidence(activityOut,dt,expected);
     result.file=dataFile; result.channel=de; result.rpm=rpm;
-    result.expected_bpfo_hz=expected;
+    result.fault_frequency_name=faultName;
+    result.expected_fault_hz=expected;
     result.raw_periodicity_peak_hz=peakRaw;
     result.fused_periodicity_peak_hz=peakOut;
-    result.raw_bpfo_contrast=contrastRaw;
-    result.fused_bpfo_contrast=contrastOut;
-    fprintf('CWRU %s, RPM %.0f, expected BPFO %.2f Hz, raw periodicity peak %.2f Hz (contrast %.2f), fused %.2f Hz (contrast %.2f)\n', ...
-        stem,rpm,expected,peakRaw,contrastRaw,peakOut,contrastOut);
+    result.raw_fault_contrast=contrastRaw;
+    result.fused_fault_contrast=contrastOut;
+    fprintf('CWRU %s, RPM %.0f, expected %s %.2f Hz, raw periodicity peak %.2f Hz (contrast %.2f), fused %.2f Hz (contrast %.2f)\n', ...
+        stem,rpm,faultName,expected,peakRaw,contrastRaw,peakOut,contrastOut);
     plot_result(tw,f,W,Sf,St,Wout,outdir,[1000 min(4500,fs/2)],[]);
 end
 fid=fopen(fullfile(outdir,'result.json'),'w');

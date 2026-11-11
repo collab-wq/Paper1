@@ -3,7 +3,12 @@ name: MATLAB cloud verification
 on:
   push:
     branches: [work]
+    paths-ignore:
+      - figures/**
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   matlab:
@@ -19,32 +24,40 @@ jobs:
         uses: matlab-actions/run-command@v3
         with:
           command: "addpath('matlab'); verify_matlab_cloud"
-      - name: Reproduce current dual-direction prototype
-        uses: matlab-actions/run-command@v3
-        with:
-          command: "mkdir('results/baseline'); diary('results/baseline/prototype.log'); run('demo_direct_wvd_signed_amb_temporal_triplets.m'); diary('off')"
-      - name: Evaluate soft two-direction fusion
-        uses: matlab-actions/run-command@v3
-        with:
-          command: "addpath('matlab'); evaluate_fusion"
       - name: Download official CWRU first batch
         run: bash scripts/download_cwru.sh
       - name: Validate CWRU MAT records and metadata
         uses: matlab-actions/run-command@v3
         with:
           command: "addpath('matlab'); validate_cwru"
-      - name: Inspect CWRU WVD frequency candidates
-        uses: matlab-actions/run-command@v3
-        with:
-          command: "addpath('matlab'); probe_cwru"
       - name: Run final algorithm on synthetic signal
         uses: matlab-actions/run-command@v3
         with:
           command: "main_Paper1('synthetic')"
+      - name: Run final algorithm on CWRU inner-race fault
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "main_Paper1('cwru','input/cwru/105.mat')"
+      - name: Run final algorithm on CWRU rolling-element fault
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "main_Paper1('cwru','input/cwru/118.mat')"
       - name: Run final algorithm on CWRU outer-race fault
         uses: matlab-actions/run-command@v3
         with:
           command: "main_Paper1('cwru','input/cwru/130.mat')"
+      - name: Publish paper figures on the research branch
+        run: |
+          mkdir -p figures
+          cp results/synthetic/paper_figure.png figures/synthetic.png
+          cp results/cwru-105/paper_figure.png figures/cwru-105.png
+          cp results/cwru-118/paper_figure.png figures/cwru-118.png
+          cp results/cwru-130/paper_figure.png figures/cwru-130.png
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add figures
+          git diff --cached --quiet || git commit -m 'Add executed MATLAB paper figures'
+          git push origin HEAD:work
       - name: Save verification logs and results
         if: always()
         uses: actions/upload-artifact@v4
