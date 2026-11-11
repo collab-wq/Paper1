@@ -1,8 +1,9 @@
-function result = main_Paper1(mode, dataFile)
+function result = main_Paper1(mode, dataFile, startIndex)
 % Paper1: direct-WVD dual-direction endpoint/midpoint/endpoint detector.
 % Usage: main_Paper1('synthetic') or main_Paper1('cwru','input/cwru/130.mat')
 if nargin<1, mode='synthetic'; end
 if nargin<2, dataFile='input/cwru/130.mat'; end
+if nargin<3, startIndex=1; end
 mode=char(mode);
 if strcmp(mode,'synthetic')
     rng(7); fs=4000; t=(0:round(0.27*fs)-1)'/fs;
@@ -30,13 +31,21 @@ elseif strcmp(mode,'cwru')
     else, key=sprintf('X%d',id); fs=12000; end
     de=[key '_DE_time']; rpmKey=[key 'RPM'];
     assert(isfield(d,de) && isfield(d,rpmKey),'Required DE/RPM variables missing');
-    x=d.(de); x=double(x(1:2048)); x=x(:); rpm=double(d.(rpmKey));
+    record=d.(de);
+    assert(startIndex>=1 && startIndex+2047<=numel(record), ...
+        'Requested 2048-sample segment is outside record');
+    x=double(record(startIndex:startIndex+2047)); x=x(:);
+    rpm=double(d.(rpmKey));
     p=struct('bands',[],'Lsec',0.006,'hopSec',0.001, ...
         'spanHz',110,'sigmaHz',80,'excludeHz',100, ...
         'freqAvgHz',200,'freqThr',0.10,'timeThr',0.08, ...
         'activityThr',0.005,'maxPairDelaySec',0.08, ...
         'minPeakDistanceSec',0.004);
-    outdir=fullfile('results',['cwru-' stem]);
+    if startIndex==1
+        outdir=fullfile('results',['cwru-' stem]);
+    else
+        outdir=fullfile('results',sprintf('cwru-%s-start%d',stem,startIndex));
+    end
 else
     error('Unknown mode %s',mode);
 end
@@ -93,7 +102,7 @@ if strcmp(mode,'synthetic')
         100*result.intersection_metrics.time_cross_removed, ...
         100*result.intersection_metrics.intermode_cross_removed, ...
         result.intersection_metrics.nmse);
-    plot_result(tw,f,W,Sf,St,Wout,outdir,[400 1250],Wauto);
+    plot_result(tw,f,W,Sf,St,Wout,outdir,[400 1250],Wauto,[]);
 else
     switch id
         case 105
@@ -113,15 +122,23 @@ else
     [peakRaw,contrastRaw]=fault_evidence(activityRaw,dt,expected);
     [peakOut,contrastOut]=fault_evidence(activityOut,dt,expected);
     result.file=dataFile; result.channel=de; result.rpm=rpm;
+    result.start_sample=startIndex; result.end_sample=startIndex+2047;
     result.fault_frequency_name=faultName;
     result.expected_fault_hz=expected;
     result.raw_periodicity_peak_hz=peakRaw;
     result.fused_periodicity_peak_hz=peakOut;
     result.raw_fault_contrast=contrastRaw;
     result.fused_fault_contrast=contrastOut;
+    if numel(peakIdx)>1
+        result.median_candidate_spacing_ms=1000*median(diff(tw(peakIdx)));
+    else
+        result.median_candidate_spacing_ms=NaN;
+    end
     fprintf('CWRU %s, RPM %.0f, expected %s %.2f Hz, raw periodicity peak %.2f Hz (contrast %.2f), fused %.2f Hz (contrast %.2f)\n', ...
         stem,rpm,faultName,expected,peakRaw,contrastRaw,peakOut,contrastOut);
-    plot_result(tw,f,W,Sf,St,Wout,outdir,[1000 min(4500,fs/2)],[]);
+    evidence=struct('raw',activityRaw,'fused',activityOut, ...
+        'dt',dt,'expected_hz',expected,'fault_name',faultName);
+    plot_result(tw,f,W,Sf,St,Wout,outdir,[1000 min(4500,fs/2)],[],evidence);
 end
 fid=fopen(fullfile(outdir,'result.json'),'w');
 assert(fid>0); fprintf(fid,'%s\n',jsonencode(result)); fclose(fid);
@@ -235,26 +252,43 @@ background=freq>=50&freq<=200&~search;
 peak=candidates(k); contrast=power/(median(Y(background))+eps);
 end
 
-function plot_result(tw,f,W,Sf,St,Wout,outdir,ylimHz,Wauto)
-fig=figure('Visible','off','Color','w','Position',[30 30 1200 760]);
+function plot_result(tw,f,W,Sf,St,Wout,outdir,ylimHz,Wauto,evidence)
+fig=figure('Visible','off','Color','w','Position',[30 30 1260 700]);
 scale=0.035*max(abs(W(:)))+eps;
-subplot(2,3,1); imagesc(tw,f,asinh(W/scale)); axis xy; ylim(ylimHz);
+layout=tiledlayout(fig,2,3,'TileSpacing','compact','Padding','compact');
+ax=nexttile(layout); imagesc(tw,f,asinh(W/scale)); axis xy; ylim(ylimHz);
 title('Original WVD'); xlabel('Time (s)'); ylabel('Frequency (Hz)');
-subplot(2,3,2); imagesc(tw,f,Sf); axis xy; ylim(ylimHz); title('Frequency triplets'); xlabel('Time (s)');
-subplot(2,3,3); imagesc(tw,f,St); axis xy; ylim(ylimHz); title('Time triplets'); xlabel('Time (s)');
-subplot(2,3,4); imagesc(tw,f,asinh(Wout/scale)); axis xy; ylim(ylimHz);
+ax.FontSize=9;
+ax=nexttile(layout); imagesc(tw,f,Sf); axis xy; ylim(ylimHz); title('Frequency triplets'); xlabel('Time (s)'); ax.FontSize=9;
+ax=nexttile(layout); imagesc(tw,f,St); axis xy; ylim(ylimHz); title('Time triplets'); xlabel('Time (s)'); ax.FontSize=9;
+ax=nexttile(layout); imagesc(tw,f,asinh(Wout/scale)); axis xy; ylim(ylimHz);
 title('Fused original WVD'); xlabel('Time (s)'); ylabel('Frequency (Hz)');
-subplot(2,3,5); imagesc(tw,f,sqrt(max(Sf,0).*max(St,0))); axis xy; ylim(ylimHz);
-title('Geometric fusion'); xlabel('Time (s)');
-subplot(2,3,6);
-if isempty(Wauto)
-    plot(tw,sum(max(Wout,0),1)); ylabel('Positive WVD activity');
-    title('Fused activity');
+ax.FontSize=9;
+ax=nexttile(layout); imagesc(tw,f,sqrt(max(Sf,0).*max(St,0))); axis xy; ylim(ylimHz);
+title('Geometric fusion'); xlabel('Time (s)'); ax.FontSize=9;
+ax=nexttile(layout); ax.FontSize=9;
+if ~isempty(evidence)
+    [freq,pRaw]=periodogram_curve(evidence.raw,evidence.dt);
+    [~,pFused]=periodogram_curve(evidence.fused,evidence.dt);
+    back=freq>=50 & freq<=200;
+    h1=plot(freq,10*log10(pRaw/(median(pRaw(back))+eps)+eps),'Color',[.5 .5 .5]); hold on;
+    h2=plot(freq,10*log10(pFused/(median(pFused(back))+eps)+eps),'b');
+    xline(evidence.expected_hz,'r--',evidence.fault_name);
+    xlim([50 200]); ylabel('Periodic power / median (dB)');
+    title('Fault repetition evidence'); legend([h1 h2],{'Original','Fused'},'Location','northeast');
+    xlabel('Repetition frequency (Hz)');
 else
     imagesc(tw,f,asinh(Wauto/scale)); axis xy; ylim(ylimHz);
     title('Oracle self terms'); ylabel('Frequency (Hz)');
+    xlabel('Time (s)');
 end
-xlabel('Time (s)');
-exportgraphics(fig,fullfile(outdir,'paper_figure.png'),'Resolution',300);
+exportgraphics(fig,fullfile(outdir,'paper_figure.png'),'Resolution',180);
 close(fig);
+end
+
+function [freq,power]=periodogram_curve(activity,dt)
+y=activity(:)'-mean(activity);
+nfft=2^nextpow2(16*numel(y));
+power=abs(fft(y,nfft)).^2;
+freq=(0:nfft-1)/(nfft*dt);
 end

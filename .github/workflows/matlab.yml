@@ -46,12 +46,18 @@ jobs:
         uses: matlab-actions/run-command@v3
         with:
           command: "main_Paper1('cwru','input/cwru/130.mat')"
+      - name: Repeat outer-race test on segment starting at 4097
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "main_Paper1('cwru','input/cwru/130.mat',4097)"
+      - name: Repeat outer-race test on segment starting at 8193
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "main_Paper1('cwru','input/cwru/130.mat',8193)"
       - name: Publish paper figures on the research branch
         run: |
           mkdir -p figures
           cp results/synthetic/paper_figure.png figures/synthetic.png
-          cp results/cwru-105/paper_figure.png figures/cwru-105.png
-          cp results/cwru-118/paper_figure.png figures/cwru-118.png
           cp results/cwru-130/paper_figure.png figures/cwru-130.png
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
