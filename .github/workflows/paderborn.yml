@@ -24,6 +24,7 @@ jobs:
         run: bash scripts/download_paderborn.sh
       - name: Inspect bearing fact sheets
         run: |
+          shopt -s nullglob
           for pdf in input/paderborn/*/*.pdf; do
             echo "FACT_SHEET $pdf"
             pdftotext -layout "$pdf" - | head -90

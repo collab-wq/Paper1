@@ -32,4 +32,10 @@ for k=1:numel(bearings)
         end
     end
 end
+try
+    [probe,probeF,probeT]=wvd(hilbert(randn(512,1)),64000,'NumFrequencyPoints',256);
+    fprintf('WVD_GRID_PROBE %s freq=%d time=%d\n',mat2str(size(probe)),numel(probeF),numel(probeT));
+catch ME
+    fprintf('WVD_GRID_PROBE_ERROR %s\n',ME.message);
+end
 end

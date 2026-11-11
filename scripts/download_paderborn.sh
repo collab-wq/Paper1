@@ -15,6 +15,13 @@ for bearing in K001 KA04 KI04; do
     "${bearing}/N15_M07_F10_${bearing}_2.mat" \
     "${bearing}/N15_M07_F10_${bearing}_3.mat" \
     "${bearing}/measuring_log_${bearing}.pdf"
+  if [[ -d "$target/$bearing" ]]; then
+    mv "$target/$bearing"/* "$target/"
+    rmdir "$target/$bearing"
+  fi
+  for n in 1 2 3; do
+    test -s "$target/N15_M07_F10_${bearing}_${n}.mat"
+  done
   ls -lh "$target"
   rm "$archive"
 done
