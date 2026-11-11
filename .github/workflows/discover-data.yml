@@ -65,6 +65,12 @@ jobs:
           for bearing in K001 KA04 KI04; do
             curl -sI "https://groups.uni-paderborn.de/kat/BearingDataCenter/${bearing}.rar" | grep -i -E 'HTTP/|content-length|last-modified|accept-ranges' || true
           done
+      - name: Inspect one real outer-ring damage archive
+        run: |
+          curl -LfsS --retry 3 --max-time 420 -o /tmp/KA04.rar https://groups.uni-paderborn.de/kat/BearingDataCenter/KA04.rar
+          sha256sum /tmp/KA04.rar
+          7z t /tmp/KA04.rar | tail -8
+          7z l /tmp/KA04.rar | head -75
       - uses: actions/upload-artifact@v4
         if: always()
         with:
