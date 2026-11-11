@@ -12,37 +12,47 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Fetch official Paderborn dataset page
+      - name: Fetch official Paderborn documentation and file index
         run: |
           python - <<'PY'
-          import html.parser, urllib.request
-          url='https://mb.uni-paderborn.de/en/kat/research/bearing-datacenter/data-sets-and-download'
-          req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
-          try:
+          import html, html.parser, re, urllib.request
+          base='https://mb.uni-paderborn.de/en/kat/research/bearing-datacenter/'
+          urls={
+             'datasets':base+'data-sets-and-download',
+             'conditions':base+'operating-conditions',
+             'damage':base+'bearing-damage',
+             'files':'https://groups.uni-paderborn.de/kat/BearingDataCenter/',
+          }
+          class Links(html.parser.HTMLParser):
+              def __init__(self): super().__init__(); self.links=[]; self.href=None; self.label=''
+              def handle_starttag(self,tag,attrs):
+                  if tag=='a': self.href=dict(attrs).get('href'); self.label=''
+              def handle_data(self,data):
+                  if self.href: self.label+=data.strip()+' '
+              def handle_endtag(self,tag):
+                  if tag=='a' and self.href:
+                      self.links.append((self.label.strip(),self.href)); self.href=None
+          for name,url in urls.items():
+            req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+            try:
               with urllib.request.urlopen(req,timeout=30) as response:
                   body=response.read().decode('utf-8','replace')
-                  print('PAGE_STATUS',response.status,'URL',response.url,'BYTES',len(body))
-              open('/tmp/paderborn.html','w').write(body)
-              class Links(html.parser.HTMLParser):
-                  def __init__(self): super().__init__(); self.links=[]; self.href=None; self.label=''
-                  def handle_starttag(self,tag,attrs):
-                      if tag=='a': self.href=dict(attrs).get('href'); self.label=''
-                  def handle_data(self,data):
-                      if self.href: self.label+=data.strip()+' '
-                  def handle_endtag(self,tag):
-                      if tag=='a' and self.href:
-                          self.links.append((self.label.strip(),self.href)); self.href=None
+                  print('PAGE_STATUS',name,response.status,'URL',response.url,'BYTES',len(body))
+              open('/tmp/paderborn-'+name+'.html','w').write(body)
+              clean=re.sub(r'<(script|style)[^>]*>.*?</\1>',' ',body,flags=re.I|re.S)
+              clean=html.unescape(re.sub(r'<[^>]+>',' ',clean))
+              clean=re.sub(r'\s+',' ',clean)
+              print('TEXT',name,clean[-18000:])
               p=Links(); p.feed(body)
               for label,href in p.links:
-                  if any(x in (label+' '+href).lower() for x in ['download','bearing','data','damage','pdf','.zip','ka0','ki0']):
-                      print('LINK',repr(label[:100]),href)
-          except Exception as exc:
-              print('PAGE_ERROR',repr(exc))
-              raise
+                  if name=='files' or any(x in (label+' '+href).lower() for x in ['download','bearing','data','damage','pdf','.zip','ka0','ki0']):
+                      print('LINK',name,repr(label[:100]),href)
+            except Exception as exc:
+              print('PAGE_ERROR',name,repr(exc))
           PY
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: paderborn-official-page
-          path: /tmp/paderborn.html
+          path: /tmp/paderborn-*.html
           if-no-files-found: ignore

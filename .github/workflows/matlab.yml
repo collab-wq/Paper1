@@ -3,8 +3,11 @@ name: MATLAB cloud verification
 on:
   push:
     branches: [work]
-    paths-ignore:
-      - figures/**
+    paths:
+      - .github/workflows/matlab.yml
+      - main_Paper1.m
+      - matlab/**
+      - scripts/**
   workflow_dispatch:
 
 permissions:
