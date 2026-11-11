@@ -174,10 +174,10 @@ else
     if contains(stem,'_KA'), faultName='BPFO';
     elseif contains(stem,'_KI'), faultName='BPFI';
     else, faultName='healthy'; end
-    % Nominal 6203 geometry: 8 balls, 6.75 mm ball and 28.5 mm pitch
+    % Nominal 6203 geometry: 8 balls, 6.75 mm ball and 28.55 mm pitch
     % diameter. The study reports up to 1–2% geometry variation by maker.
     geometry=struct('balls',8,'ball_diameter_mm',6.75, ...
-        'pitch_diameter_mm',28.5,'contact_angle_deg',0);
+        'pitch_diameter_mm',28.55,'contact_angle_deg',0);
     ratio=geometry.ball_diameter_mm/geometry.pitch_diameter_mm;
     bpfo=geometry.balls/2*(1-ratio)*rpm/60;
     bpfi=geometry.balls/2*(1+ratio)*rpm/60;
@@ -254,8 +254,10 @@ channel=char(yNames(v));
 x=record.Y(v).Data(:);
 time=double(record.X(record.Y(v).XIndex).Data(:));
 assert(numel(x)==numel(time) && numel(x)>64000);
-fs=1/median(diff(time));
-assert(abs(fs-64000)<100,'Vibration sampling rate disagrees with official 64 kHz');
+observedFs=(numel(time)-1)/(time(end)-time(1));
+assert(abs(observedFs-64000)<100, ...
+    'Vibration sample count and duration disagree with official 64 kHz');
+fs=64000;
 rpm=mean(double(record.Y(s).Data(:)));
 forceN=mean(double(record.Y(q).Data(:)));
 torqueNm=mean(double(record.Y(m).Data(:)));
