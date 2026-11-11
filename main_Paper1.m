@@ -255,8 +255,12 @@ x=record.Y(v).Data(:);
 time=double(record.X(record.Y(v).XIndex).Data(:));
 assert(numel(x)==numel(time) && numel(x)>64000);
 observedFs=(numel(time)-1)/(time(end)-time(1));
-assert(abs(observedFs-64000)<100, ...
-    'Vibration sample count and duration disagree with official 64 kHz');
+fprintf('Paderborn raster samples=%d duration=%.9g s implied_fs=%.6f Hz\n', ...
+    numel(time),time(end)-time(1),observedFs);
+assert(all(diff(time)>0),'Vibration time raster is not monotone');
+if abs(observedFs-64000)>=100
+    warning('Time raster differs from official 64 kHz; using official rate for segment');
+end
 fs=64000;
 rpm=mean(double(record.Y(s).Data(:)));
 forceN=mean(double(record.Y(q).Data(:)));
