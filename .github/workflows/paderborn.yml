@@ -33,11 +33,7 @@ jobs:
         uses: matlab-actions/setup-matlab@v3
         with:
           products: Signal_Processing_Toolbox
-      - name: Inspect MAT structure in MATLAB
-        uses: matlab-actions/run-command@v3
-        with:
-          command: "addpath('matlab'); inspect_paderborn"
-      - name: Run original-WVD three-point detector on Paderborn pilot
+      - name: Run three-record two-segment Paderborn validation
         uses: matlab-actions/run-command@v3
         with:
           command: "addpath('matlab'); run_paderborn_batch"
