@@ -11,9 +11,6 @@ on:
       - scripts/download_cwru.sh
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   matlab:
     runs-on: ubuntu-latest
@@ -58,16 +55,6 @@ jobs:
         uses: matlab-actions/run-command@v3
         with:
           command: "main_Paper1('cwru','input/cwru/130.mat',8193)"
-      - name: Publish paper figures on the research branch
-        run: |
-          mkdir -p figures
-          cp results/synthetic/paper_figure.png figures/synthetic.png
-          cp results/cwru-130/paper_figure.png figures/cwru-130.png
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add figures
-          git diff --cached --quiet || git commit -m 'Add executed MATLAB paper figures'
-          git push origin HEAD:work
       - name: Save verification logs and results
         if: always()
         uses: actions/upload-artifact@v4
