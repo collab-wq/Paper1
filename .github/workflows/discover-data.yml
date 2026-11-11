@@ -21,6 +21,7 @@ jobs:
              'datasets':base+'data-sets-and-download',
              'conditions':base+'operating-conditions',
              'damage':base+'bearing-damage',
+             'rig':base+'test-rig-and-measurement-equipment',
              'files':'https://groups.uni-paderborn.de/kat/BearingDataCenter/',
           }
           class Links(html.parser.HTMLParser):
@@ -50,6 +51,15 @@ jobs:
             except Exception as exc:
               print('PAGE_ERROR',name,repr(exc))
           PY
+      - name: Read official study tables and archive tools
+        run: |
+          curl -LfsS --retry 3 -o /tmp/paderborn-study.pdf https://mb.uni-paderborn.de/fileadmin-mb/kat/PDF/Veroeffentlichungen/20160703_PHME16_CM_bearing.pdf
+          pdftotext -layout /tmp/paderborn-study.pdf /tmp/paderborn-study.txt
+          rg -n -i 'Table 5|Table 6|Table 4|KA04|KA15|KI04|KI14|sampling|64 kHz|64,000|accelerat' /tmp/paderborn-study.txt | head -90
+          sed -n '130,270p' /tmp/paderborn-study.txt | head -140
+          command -v 7z || true
+          command -v bsdtar || true
+          command -v unrar || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
