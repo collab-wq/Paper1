@@ -48,7 +48,7 @@ elseif strcmp(mode,'cwru')
         outdir=fullfile('results',sprintf('cwru-%s-start%d',stem,startIndex));
     end
 elseif strcmp(mode,'paderborn')
-    [record,fs,rpm,forceN,torqueNm,channel]=read_paderborn(dataFile);
+    [record,fs,rpm,forceN,torqueNm,channel,raster]=read_paderborn(dataFile,startIndex);
     segmentN=4096;
     assert(startIndex>=1 && startIndex+segmentN-1<=numel(record), ...
         'Requested Paderborn segment is outside vibration record');
@@ -169,6 +169,8 @@ elseif strcmp(mode,'cwru')
     activityOut=sum(max(Wout(selected,:),0),1)*df;
     [peakRaw,contrastRaw]=fault_evidence(activityRaw,dt,expected);
     [peakOut,contrastOut]=fault_evidence(activityOut,dt,expected);
+    [dominantRaw,dominantRawContrast]=dominant_periodicity(activityRaw,dt);
+    [dominantOut,dominantOutContrast]=dominant_periodicity(activityOut,dt);
     result.file=dataFile; result.channel=de; result.rpm=rpm;
     result.start_sample=startIndex; result.end_sample=startIndex+2047;
     result.fault_frequency_name=faultName;
@@ -177,6 +179,11 @@ elseif strcmp(mode,'cwru')
     result.fused_periodicity_peak_hz=peakOut;
     result.raw_fault_contrast=contrastRaw;
     result.fused_fault_contrast=contrastOut;
+    result.unlabelled_raw_peak_hz=dominantRaw;
+    result.unlabelled_fused_peak_hz=dominantOut;
+    result.unlabelled_raw_contrast=dominantRawContrast;
+    result.unlabelled_fused_contrast=dominantOutContrast;
+    result.target_peak_error_hz=abs(peakOut-expected);
     if numel(peakIdx)>1
         result.median_candidate_spacing_ms=1000*median(diff(tw(peakIdx)));
     else
@@ -215,11 +222,14 @@ else
     [outBpfo,outBpfoContrast]=fault_evidence(activityOut,dt,bpfo);
     [rawBpfi,rawBpfiContrast]=fault_evidence(activityRaw,dt,bpfi);
     [outBpfi,outBpfiContrast]=fault_evidence(activityOut,dt,bpfi);
+    [dominantRaw,dominantRawContrast]=dominant_periodicity(activityRaw,dt);
+    [dominantOut,dominantOutContrast]=dominant_periodicity(activityOut,dt);
     result.file=dataFile; result.channel=channel;
     result.start_sample=startIndex; result.end_sample=startIndex+numel(x)-1;
     result.rpm=rpm; result.measured_force_N=forceN;
     result.measured_torque_Nm=torqueNm;
     result.rpm_source=rpmSource;
+    if strcmp(mode,'paderborn'), result.time_raster=raster; end
     if strcmp(mode,'xjtu')
         result.force_source='nominal 12 kN test condition';
         result.nominal_force_N=forceN;
@@ -238,6 +248,13 @@ else
     result.fused_bpfi_peak_hz=outBpfi;
     result.raw_bpfi_contrast=rawBpfiContrast;
     result.fused_bpfi_contrast=outBpfiContrast;
+    result.unlabelled_raw_peak_hz=dominantRaw;
+    result.unlabelled_fused_peak_hz=dominantOut;
+    result.unlabelled_raw_contrast=dominantRawContrast;
+    result.unlabelled_fused_contrast=dominantOutContrast;
+    if strcmp(faultName,'BPFI'), target=bpfi; targetPeak=outBpfi;
+    else, target=bpfo; targetPeak=outBpfo; end
+    result.target_peak_error_hz=abs(targetPeak-target);
     if numel(peakIdx)>1
         result.median_candidate_spacing_ms=1000*median(diff(tw(peakIdx)));
     else
@@ -274,7 +291,7 @@ fid=fopen(fullfile(outdir,'result.json'),'w');
 assert(fid>0); fprintf(fid,'%s\n',jsonencode(result)); fclose(fid);
 end
 
-function [x,fs,rpm,forceN,torqueNm,channel]=read_paderborn(file)
+function [x,fs,rpm,forceN,torqueNm,channel,raster]=read_paderborn(file,startIndex)
 d=load(file); names=fieldnames(d);
 assert(numel(names)==1,'Expected one Paderborn measurement root');
 record=d.(names{1});
@@ -291,6 +308,13 @@ x=record.Y(v).Data(:);
 time=double(record.X(record.Y(v).XIndex).Data(:));
 assert(numel(x)==numel(time) && numel(x)>64000);
 observedFs=(numel(time)-1)/(time(end)-time(1));
+raster=struct('samples',numel(time),'duration_s',time(end)-time(1), ...
+    'global_implied_fs_hz',observedFs);
+if startIndex+4095<=numel(time)
+    raster.segment_implied_fs_hz=4095/(time(startIndex+4095)-time(startIndex));
+else
+    raster.segment_implied_fs_hz=NaN;
+end
 fprintf('Paderborn raster samples=%d duration=%.9g s implied_fs=%.6f Hz\n', ...
     numel(time),time(end)-time(1),observedFs);
 assert(all(diff(time)>0),'Vibration time raster is not monotone');
@@ -412,6 +436,14 @@ background=freq>=50&freq<=200&~search;
 peak=candidates(k); contrast=power/(median(Y(background))+eps);
 end
 
+function [peak,contrast]=dominant_periodicity(activity,dt)
+[freq,power]=periodogram_curve(activity,dt);
+band=freq>=50&freq<=200;
+values=power(band); candidates=freq(band);
+[height,k]=max(values); peak=candidates(k);
+contrast=height/(median(values)+eps);
+end
+
 function plot_result(tw,f,W,Sf,St,Wout,outdir,ylimHz,Wauto,evidence)
 fig=figure('Visible','off','Color','w','Position',[30 30 1260 700]);
 scale=0.035*max(abs(W(:)))+eps;
@@ -430,7 +462,8 @@ ax=nexttile(layout); ax.FontSize=9;
 if ~isempty(evidence)
     [freq,pRaw]=periodogram_curve(evidence.raw,evidence.dt);
     [~,pFused]=periodogram_curve(evidence.fused,evidence.dt);
-    back=freq>=50 & freq<=200;
+    target=freq>=0.8*evidence.expected_hz & freq<=1.2*evidence.expected_hz;
+    back=freq>=50 & freq<=200 & ~target;
     h1=plot(freq,10*log10(pRaw/(median(pRaw(back))+eps)+eps),'Color',[.5 .5 .5]); hold on;
     h2=plot(freq,10*log10(pFused/(median(pFused(back))+eps)+eps),'b');
     xline(evidence.expected_hz,'r--',evidence.fault_name);
