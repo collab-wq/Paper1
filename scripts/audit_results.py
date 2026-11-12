@@ -9,6 +9,11 @@ def records(root):
     found = {}
     for path in Path(root).rglob('result.json'):
         item = json.loads(path.read_text())
+        # The MATLAB setup artifact is an environment smoke test, not an experiment.
+        if 'mode' not in item:
+            if path.parent.name == 'matlab-verification':
+                continue
+            raise RuntimeError(f'Missing experiment mode in {path}')
         mode = item['mode']
         key = (mode, Path(item.get('file', '')).name, item.get('start_sample', 0))
         if key in found:
