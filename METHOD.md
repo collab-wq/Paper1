@@ -15,6 +15,14 @@ W_z(t,f)=\int z(t+\tau/2)z^*(t-\tau/2)
 
 离散实验由 MATLAB `wvd(hilbert(x),fs)` 给出矩阵 (W[k,n])、单调递增的频率网格 (f_k) 和时间网格 (t_n)。(k) 是频率索引，(n) 是 MATLAB 返回的 WVD 时间索引；程序以返回的网格计算 \(\Delta f\) 和 \(\Delta t\)，不将输入样本索引误当成 WVD 时间索引。检测器对原始 WVD 操作，最终输出仍取原始 WVD 像素。输入信号不作带通、模态分解或其他预处理。
 
+为与可执行离散定义严格对应，本文实验中的离散算子记为
+
+\[
+(W[k,n],f_k,t_n):=\bigl(\Re\{\operatorname{wvd}(\operatorname{hilbert}(x),f_s)\},f,tw\bigr). \tag{2a}
+\]
+
+MATLAB 对这批长度为 \(N\) 的片段返回 \(2N\) 个时间格点；频率格点数在真实数据实验中可能因 WVD 计算后的选带裁取而减少。式 (2) 说明连续 WVD 意义，式 (2a) 指定复现实验时实际调用的离散算子；不对 Toolbox 未公开的边界插值和离散核细节作未经验证的等同断言。
+
 本项目不另行实现离散 WVD 核；离散计算由所记录的 MATLAB/Signal Processing Toolbox 版本执行，实际采用 `W=real(wvd(hilbert(x),fs))` 及函数返回的 `f,tw` 网格。`f`、频带、频率端点宽度为 Hz；`tw`、时间窗、候选对延迟为秒。若将 WVD 像素的数值单位记作 U，则式 (5)、(8) 的原始分数及端点累积分数为 U³，两带积分活动量为 U·Hz；归一化后的 \(S_f,S_t,E,S\) 与掩膜 \(M\) 无量纲，\(W_{\mathrm{out}}\) 与输入 WVD 保持同一数值单位。真实数据的 WVD 频率裁取只发生在 `wvd` 完成后，用于控制检测内存。
 
 ## 2. 频率方向三点检测

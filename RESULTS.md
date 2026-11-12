@@ -1,5 +1,7 @@
 # Paper1 已执行实验与结果
 
+> 此文件保留前期运行记录；最终一致性核查和统一结论以 `AUDIT_REPORT.md`、`AUDIT_RESULTS.csv`、`FINAL_RESULTS.md` 为准。
+
 ## 云端 MATLAB 环境
 
 GitHub Actions 在 Ubuntu 24.04 上通过 MathWorks 官方 `setup-matlab@v3` 安装 MATLAB R2026b Update 1（26.2.0.3433840）和 Signal Processing Toolbox；`run-command@v3` 执行了最小测试。`hilbert`、`wvd` 路径均可解析，256 点双频实信号得到 256×512 WVD，所有值有限。测试日志、JSON 与 MAT 结果在 [首次环境验证运行及 Artifact](https://github.com/collab-wq/Paper1/actions/runs/42977349694) 中。
