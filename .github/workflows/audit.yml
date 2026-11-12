@@ -76,6 +76,7 @@ jobs:
             results/audit_summary.json
             results/**/result.json
             results/**/experiment.log
+            results/**/paper_figure.png
             results/paderborn/repeat_summary.csv
             results/xjtu/life_summary.csv
             figures/*.png

@@ -55,7 +55,9 @@ def main():
     assert set(old) == set(new), f'Experiment sets differ: old={len(old)}, new={len(new)}'
     summary = {'baseline_commit': '01ace753f92b4b1b77eb00b310f5e692f63a3637',
                'rerun_count': len(new), 'mismatches': {}, 'synthetic_metrics': {}}
-    fields = ['dataset', 'file', 'start_sample', 'samples', 'fs_hz', 'expected_hz',
+    fields = ['dataset', 'file', 'start_sample', 'samples', 'fs_hz',
+              'observation_s', 'physical_resolution_hz',
+              'wvd_frequency_bins', 'wvd_time_bins', 'expected_hz',
               'raw_target_peak_hz', 'fused_target_peak_hz', 'target_error_hz',
               'raw_target_contrast', 'fused_target_contrast',
               'unlabelled_raw_peak_hz', 'unlabelled_fused_peak_hz',
@@ -85,8 +87,13 @@ def main():
                 raw = item['raw_'+kind+'_peak_hz']; fused = item['fused_'+kind+'_peak_hz']
                 rawc = item['raw_'+kind+'_contrast']; fusedc = item['fused_'+kind+'_contrast']
             raster = item.get('time_raster', {})
+            samples = item['end_sample']-start+1
             writer.writerow(dict(dataset=mode, file=file, start_sample=start,
-                samples=item['end_sample']-start+1, fs_hz=item['fs_hz'],
+                samples=samples, fs_hz=item['fs_hz'],
+                observation_s=samples/item['fs_hz'],
+                physical_resolution_hz=item['fs_hz']/samples,
+                wvd_frequency_bins=item['wvd_size'][0],
+                wvd_time_bins=item['wvd_size'][1],
                 expected_hz=expected, raw_target_peak_hz=raw,
                 fused_target_peak_hz=fused, target_error_hz=abs(fused-expected),
                 raw_target_contrast=rawc, fused_target_contrast=fusedc,

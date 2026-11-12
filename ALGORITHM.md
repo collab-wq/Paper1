@@ -39,3 +39,9 @@ main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_1/123.csv',4097)
 | `maxPairDelaySec` | 0.16 s | 0.08 s | 时间候选对最大间隔 |
 
 首批数据工况：`97.mat` 正常 0 HP，`105.mat` 驱动端内圈 0.007 in 故障 0 HP，`118.mat` 滚动体 0.007 in 故障 0 HP，`130.mat` 驱动端外圈 0.007 in、6 点位置 0 HP。后三份在 CWRU 官方 **12k Drive End Bearing Fault Data** 表内。`97.mat` 来自独立 **Normal Baseline Data** 表，应按正常基线的 48 kHz 采样处理；MAT 文件本身没有采样率变量，不能把采样率“读取自 MAT”。
+
+## 三套数据集的最终核查入口
+
+`.github/workflows/audit.yml` 固定下载前次已执行运行 `42999351528`、`42999351710`、`42999351656` 的 JSON 结果作为逐项数值参考；再次下载并校验三套原始数据，使用 `matlab/run_audit.m` 重跑固定片段与参数，调用 `scripts/audit_results.py` 输出 `AUDIT_RESULTS.csv`。35 段真实数据和一项合成信号均参与比较。脚本将旧 JSON 的每个字段与新 JSON 比对（相对容差 `1e-8`），并把新加的无标签周期峰、目标峰误差和 Paderborn 局部时间栅格另列供核查。核查结果与逐段日志、JSON、代表图保存在 `paper1-audit` Actions Artifact。
+
+真实数据参数分别在 `main_Paper1.m` 对应模式中定义；Paderborn、XJTU-SY 的分段长度、时间窗和自动选带范围另见 `REAL_DATA_RESULTS.md`。理论故障频率只在完成检测和重构后用于评价；正常记录的目标频率窗口也仅作为事后响应对照。最终核查与物理分辨率解释见 `AUDIT_REPORT.md`，统一实验结论见 `FINAL_RESULTS.md`。
