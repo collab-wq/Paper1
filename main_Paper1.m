@@ -458,6 +458,12 @@ for k=1:numel(allAxes)
     allAxes(k).Title.FontSize=11;
     allAxes(k).XLabel.FontSize=10;
     allAxes(k).YLabel.FontSize=10;
+    if strcmp(allAxes(k).YLabel.String,'Frequency (Hz)')
+        allAxes(k).YLabel.Units='normalized';
+        labelPosition=allAxes(k).YLabel.Position;
+        labelPosition(1)=labelPosition(1)-0.09;
+        allAxes(k).YLabel.Position=labelPosition;
+    end
 end
 if ~isempty(evidence)
     drawnow;
