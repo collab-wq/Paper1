@@ -175,7 +175,7 @@ KA04 六段在目标窗内接近名义 BPFO，但健康 K001 的单段目标窗�
 
 ### 7.1 实际执行与逐段数据
 
-[完整 MATLAB 运行与九组 Artifacts](https://github.com/collab-wq/Paper1/actions/runs/43605759668)先通过自检，再执行 CWRU 5 段、Paderborn 18 段、XJTU-SY 12 段各三个 R。105 个计划格点中 104 个成功；唯一失败是 CWRU `118.mat` 起始 1、R=4，在既定 1.5–4.5 kHz 搜索范围及 600 Hz 最小峰距下只找到 3 个独立共振峰，程序明确报错，没有伪造第四带或回退到 R=2。各格点的实际带上下界与中心、频率三点候选数、有效带对窗口数、时间端点与候选对、理论频率、原始与融合目标峰、无标签主峰、对比度、误差和掩膜比例见 `MULTIBAND_RESULTS.csv`；失败格点也保留一行。每个成功格点的原始 WVD、两方向检测、单方向输出、融合掩膜、最终 WVD、重复证据图、MAT/JSON 和日志在对应 Artifact 中。
+[重绘后的完整 MATLAB 运行与九组 Artifacts](https://github.com/collab-wq/Paper1/actions/runs/43607357936)先通过自检，再执行 CWRU 5 段、Paderborn 18 段、XJTU-SY 12 段各三个 R。105 个计划格点中 104 个成功；唯一失败是 CWRU `118.mat` 起始 1、R=4，在既定 1.5–4.5 kHz 搜索范围及 600 Hz 最小峰距下只找到 3 个独立共振峰，程序明确报错，没有伪造第四带或回退到 R=2。各格点的实际带上下界与中心、频率三点候选数、有效带对窗口数、时间端点与候选对、理论频率、原始与融合目标峰、无标签主峰、对比度、误差和掩膜比例见 `MULTIBAND_RESULTS.csv`；失败格点也保留一行。每个成功格点的原始 WVD、两方向检测、单方向输出、融合掩膜、最终 WVD、重复证据图、MAT/JSON 和日志在对应 Artifact 中。
 
 ### 7.2 按物理案例比较 R
 
@@ -195,4 +195,4 @@ KA04 六段在目标窗内接近名义 BPFO，但健康 K001 的单段目标窗�
 
 R=3/4 增加了实际带对和三点候选，但没有形成跨数据集一致改善。KA04 在 R=2 的融合目标对比度最高；KI04 在 R 增大后目标误差中位数变大；XJTU-SY 中后期在 R=3 的融合目标对比度最高。CWRU 130 三个 R 的目标窗位置都稳定，融合对比度没有随 R 增大而上升。CWRU 105 虽目标窗峰接近 BPFI，无标签主峰仍约 60 Hz；CWRU 118 未得到可靠 BSF 定位。早期 XJTU-SY 无标签主峰不稳定，也没有每条快照的独立损伤阶段标签。目标窗对比度不能单独当作无先验分类准确率。
 
-分支代表八联图（PNG/PDF）：[CWRU 130，R=4](figures/absolute-support-multiband/cwru-130-R4.png)、[Paderborn KA04，R=2](figures/absolute-support-multiband/paderborn-ka04-R2.png)、[XJTU-SY 后期，R=3](figures/absolute-support-multiband/xjtu-bearing1_1-late-R3.png)。选取它们只为展示不同 R 的实际输出；完整 104 个有效图保存在上述 Actions Artifacts。
+[数值一致性与代表图发布运行](https://github.com/collab-wq/Paper1/actions/runs/43619390690)从九个重绘 Artifact 重新聚合 105 行，并与已提交 `MULTIBAND_RESULTS.csv` 逐字节一致。放大检查三张代表图后，修正后的纵轴单位与刻度不再重叠。\n\n分支代表八联图（PNG/PDF）：[CWRU 130，R=4](figures/absolute-support-multiband/cwru-130-R4.png)、[Paderborn KA04，R=2](figures/absolute-support-multiband/paderborn-ka04-R2.png)、[XJTU-SY 后期，R=3](figures/absolute-support-multiband/xjtu-bearing1_1-late-R3.png)。选取它们只为展示不同 R 的实际输出；完整 104 个有效图保存在上述 Actions Artifacts。
