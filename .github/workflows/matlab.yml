@@ -8,6 +8,8 @@ on:
       - main_Paper1.m
       - matlab/verify_matlab_cloud.m
       - matlab/validate_cwru.m
+      - matlab/run_synthetic_batch.m
+      - matlab/run_cwru_batch.m
       - scripts/download_cwru.sh
   workflow_dispatch:
 
@@ -31,30 +33,14 @@ jobs:
         uses: matlab-actions/run-command@v3
         with:
           command: "addpath('matlab'); validate_cwru"
-      - name: Run final algorithm on synthetic signal
+      - name: Run synthetic experiment
         uses: matlab-actions/run-command@v3
         with:
-          command: "main_Paper1('synthetic')"
-      - name: Run final algorithm on CWRU inner-race fault
+          command: "addpath('matlab'); run_synthetic_batch"
+      - name: Run five CWRU fault-signal segments
         uses: matlab-actions/run-command@v3
         with:
-          command: "main_Paper1('cwru','input/cwru/105.mat')"
-      - name: Run final algorithm on CWRU rolling-element fault
-        uses: matlab-actions/run-command@v3
-        with:
-          command: "main_Paper1('cwru','input/cwru/118.mat')"
-      - name: Run final algorithm on CWRU outer-race fault
-        uses: matlab-actions/run-command@v3
-        with:
-          command: "main_Paper1('cwru','input/cwru/130.mat')"
-      - name: Repeat outer-race test on segment starting at 4097
-        uses: matlab-actions/run-command@v3
-        with:
-          command: "main_Paper1('cwru','input/cwru/130.mat',4097)"
-      - name: Repeat outer-race test on segment starting at 8193
-        uses: matlab-actions/run-command@v3
-        with:
-          command: "main_Paper1('cwru','input/cwru/130.mat',8193)"
+          command: "addpath('matlab'); run_cwru_batch"
       - name: Save verification logs and results
         if: always()
         uses: actions/upload-artifact@v4

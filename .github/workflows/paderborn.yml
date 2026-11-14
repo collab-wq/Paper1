@@ -6,7 +6,7 @@ on:
     paths:
       - .github/workflows/paderborn.yml
       - main_Paper1.m
-      - matlab/**
+      - matlab/run_paderborn_batch.m
       - scripts/download_paderborn.sh
   workflow_dispatch:
 

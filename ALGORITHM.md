@@ -4,16 +4,17 @@
 
 GitHub Actions 工作流 `.github/workflows/matlab.yml` 使用 `matlab-actions/setup-matlab@v3` 安装 MATLAB 与 Signal Processing Toolbox，以 `matlab-actions/run-command@v3` 执行测试及实验。`scripts/download_cwru.sh` 从 CWRU 官方站点下载首批四份原始 MAT 文件，逐一校验 SHA-256；`matlab/validate_cwru.m` 检查变量、样本数、DE 通道及 MAT 内记录的转速。原始数据置于 `input/cwru/`，不提交到 Paper1 仓库。日志、JSON 指标及 PNG 图保存为 Actions Artifact。
 
-MATLAB 主入口：
+MATLAB 四类实验入口（均调用同一个 `main_Paper1.m`）：
 
 ```matlab
-main_Paper1('synthetic')
-main_Paper1('cwru','input/cwru/130.mat')
-main_Paper1('cwru','input/cwru/130.mat',4097)
-main_Paper1('cwru','input/cwru/130.mat',8193)
-main_Paper1('paderborn','input/paderborn/KA04/N15_M07_F10_KA04_1.mat',64001)
-main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_1/123.csv',4097)
+addpath('matlab')
+run_synthetic_batch
+run_cwru_batch
+run_paderborn_batch
+run_xjtu_batch
 ```
+
+`run_audit` 顺序调用上述四个入口，并在 GitHub Actions 中与固定历史 Artifact 对比。数据完整性检查由 `validate_cwru` 等独立程序完成，不包含在批量入口内。
 
 ## 离散步骤
 
@@ -44,4 +45,4 @@ main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_1/123.csv',4097)
 
 `.github/workflows/audit.yml` 固定下载前次已执行运行 `42999351528`、`42999351710`、`42999351656` 的 JSON 结果作为逐项数值参考；再次下载并校验三套原始数据，使用 `matlab/run_audit.m` 重跑固定片段与参数，调用 `scripts/audit_results.py` 输出 `AUDIT_RESULTS.csv`。35 段真实数据和一项合成信号均参与比较。脚本将旧 JSON 的每个字段与新 JSON 比对（相对容差 `1e-8`），并把新加的无标签周期峰、目标峰误差和 Paderborn 局部时间栅格另列供核查。核查结果与逐段日志、JSON、代表图保存在 `paper1-audit` Actions Artifact。
 
-真实数据参数分别在 `main_Paper1.m` 对应模式中定义；Paderborn、XJTU-SY 的分段长度、时间窗和自动选带范围另见 `REAL_DATA_RESULTS.md`。理论故障频率只在完成检测和重构后用于评价；正常记录的目标频率窗口也仅作为事后响应对照。最终核查与物理分辨率解释见 `AUDIT_REPORT.md`，统一实验结论见 `FINAL_RESULTS.md`。
+真实数据参数分别在 `main_Paper1.m` 对应模式中定义；四类实验的片段、时间窗和自动选带范围详见 `RESULTS.md`。理论故障频率只在完成检测和重构后用于评价；正常记录的目标频率窗口也仅作为事后响应对照。最终核查与物理分辨率解释见 `AUDIT_REPORT.md`，统一实验结论见 `FINAL_RESULTS.md`。
