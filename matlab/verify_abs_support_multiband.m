@@ -34,7 +34,10 @@ assert(abs(moment-220)<1e-12);
 momentPositive=sum(momentF.*max(momentBar,0))/sum(max(momentBar,0));
 assert(abs(moment-momentPositive)>1);
 
-Rlist=[2 3 4]; rows=struct([]);
+Rlist=[2 3 4];
+rows=repmat(struct('R',0,'selected_bands_hz',[], ...
+    'band_pair_count',0,'valid_band_pair_windows',0, ...
+    'frequency_triplets',0,'time_endpoints',0,'time_pairs',0),1,3);
 for k=1:3
     R=Rlist(k);
     bands=select_resonance_bands(W,f,R,30,100,1200,200,40);
@@ -67,7 +70,7 @@ for k=1:3
         'band_pair_count',size(counts,2), ...
         'valid_band_pair_windows',sum(counts>0,'all'), ...
         'frequency_triplets',sum(counts,'all'), ...
-        'time_endpoints',numel(peakIdx),'time_pairs',pairCount); %#ok<AGROW>
+        'time_endpoints',numel(peakIdx),'time_pairs',pairCount);
     fprintf('R=%d: %d band pairs; %d frequency triplets; %d time endpoints\n', ...
         R,size(counts,2),sum(counts,'all'),numel(peakIdx));
 end
