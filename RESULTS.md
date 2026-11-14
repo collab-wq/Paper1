@@ -195,4 +195,6 @@ KA04 六段在目标窗内接近名义 BPFO，但健康 K001 的单段目标窗�
 
 R=3/4 增加了实际带对和三点候选，但没有形成跨数据集一致改善。KA04 在 R=2 的融合目标对比度最高；KI04 在 R 增大后目标误差中位数变大；XJTU-SY 中后期在 R=3 的融合目标对比度最高。CWRU 130 三个 R 的目标窗位置都稳定，融合对比度没有随 R 增大而上升。CWRU 105 虽目标窗峰接近 BPFI，无标签主峰仍约 60 Hz；CWRU 118 未得到可靠 BSF 定位。早期 XJTU-SY 无标签主峰不稳定，也没有每条快照的独立损伤阶段标签。目标窗对比度不能单独当作无先验分类准确率。
 
-[数值一致性与代表图发布运行](https://github.com/collab-wq/Paper1/actions/runs/43619390690)从九个重绘 Artifact 重新聚合 105 行，并与已提交 `MULTIBAND_RESULTS.csv` 逐字节一致。放大检查三张代表图后，修正后的纵轴单位与刻度不再重叠。\n\n分支代表八联图（PNG/PDF）：[CWRU 130，R=4](figures/absolute-support-multiband/cwru-130-R4.png)、[Paderborn KA04，R=2](figures/absolute-support-multiband/paderborn-ka04-R2.png)、[XJTU-SY 后期，R=3](figures/absolute-support-multiband/xjtu-bearing1_1-late-R3.png)。选取它们只为展示不同 R 的实际输出；完整 104 个有效图保存在上述 Actions Artifacts。
+[数值一致性与代表图发布运行](https://github.com/collab-wq/Paper1/actions/runs/43619390690)从九个重绘 Artifact 重新聚合 105 行，并与已提交 `MULTIBAND_RESULTS.csv` 逐字节一致。放大检查三张代表图后，修正后的纵轴单位与刻度不再重叠。
+
+分支代表八联图（PNG/PDF）：[CWRU 130，R=4](figures/absolute-support-multiband/cwru-130-R4.png)、[Paderborn KA04，R=2](figures/absolute-support-multiband/paderborn-ka04-R2.png)、[XJTU-SY 后期，R=3](figures/absolute-support-multiband/xjtu-bearing1_1-late-R3.png)。选取它们只为展示不同 R 的实际输出；完整 104 个有效图保存在上述 Actions Artifacts。
