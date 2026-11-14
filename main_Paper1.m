@@ -150,7 +150,7 @@ if strcmp(mode,'synthetic')
         100*result.intersection_metrics.time_cross_removed, ...
         100*result.intersection_metrics.intermode_cross_removed, ...
         result.intersection_metrics.nmse);
-    plot_result(tw,f,W,Sf,St,Wout,outdir,[400 1250],Wauto,[]);
+    plot_result(tw,f,W,Sf,St,Mf,Mt,M,Wout,outdir,[400 1250],Wauto,[]);
 elseif strcmp(mode,'cwru')
     switch id
         case 105
@@ -193,7 +193,7 @@ elseif strcmp(mode,'cwru')
         stem,rpm,faultName,expected,peakRaw,contrastRaw,peakOut,contrastOut);
     evidence=struct('raw',activityRaw,'fused',activityOut, ...
         'dt',dt,'expected_hz',expected,'fault_name',faultName);
-    plot_result(tw,f,W,Sf,St,Wout,outdir,[1000 min(4500,fs/2)],[],evidence);
+    plot_result(tw,f,W,Sf,St,Mf,Mt,M,Wout,outdir,[1000 min(4500,fs/2)],[],evidence);
 else
     % Fault labels and theoretical frequencies enter only after WVD band
     % selection, dual-direction detection, and reconstruction are complete.
@@ -271,7 +271,7 @@ else
         'dt',dt,'expected_hz',expected,'fault_name',faultName);
     plotLimits=[max(0,p.bands(1,1)-600) ...
         min(fs/2,p.bands(2,2)+600)];
-    plot_result(tw,f,W,Sf,St,Wout,outdir,plotLimits,[],evidence);
+    plot_result(tw,f,W,Sf,St,Mf,Mt,M,Wout,outdir,plotLimits,[],evidence);
     % Artifact grids are thinned only after all calculations. The full
     % resolution input signal and published plot remain archived.
     frequency_stride=4; time_stride=4;
@@ -444,21 +444,53 @@ values=power(band); candidates=freq(band);
 contrast=height/(median(values)+eps);
 end
 
-function plot_result(tw,f,W,Sf,St,Wout,outdir,ylimHz,Wauto,evidence)
-fig=figure('Visible','off','Color','w','Position',[30 30 1260 700]);
+function plot_result(tw,f,W,Sf,St,Mf,Mt,M,Wout,outdir,ylimHz,Wauto,evidence)
+fig=figure('Visible','off','Color','w','Units','inches', ...
+    'Position',[0.5 0.5 14 18]);
 scale=0.035*max(abs(W(:)))+eps;
-layout=tiledlayout(fig,2,3,'TileSpacing','compact','Padding','compact');
-ax=nexttile(layout); imagesc(tw,f,asinh(W/scale)); axis xy; ylim(ylimHz);
-title('Original WVD'); xlabel('Time (s)'); ylabel('Frequency (Hz)');
-ax.FontSize=9;
-ax=nexttile(layout); imagesc(tw,f,Sf); axis xy; ylim(ylimHz); title('Frequency triplets'); xlabel('Time (s)'); ax.FontSize=9;
-ax=nexttile(layout); imagesc(tw,f,St); axis xy; ylim(ylimHz); title('Time triplets'); xlabel('Time (s)'); ax.FontSize=9;
-ax=nexttile(layout); imagesc(tw,f,asinh(Wout/scale)); axis xy; ylim(ylimHz);
-title('Fused original WVD'); xlabel('Time (s)'); ylabel('Frequency (Hz)');
-ax.FontSize=9;
-ax=nexttile(layout); imagesc(tw,f,sqrt(max(Sf,0).*max(St,0))); axis xy; ylim(ylimHz);
-title('Geometric fusion'); xlabel('Time (s)'); ax.FontSize=9;
-ax=nexttile(layout); ax.FontSize=9;
+layout=tiledlayout(fig,4,2,'TileSpacing','loose','Padding','loose');
+wvdRange=max(abs(asinh(W(:)/scale)));
+scoreRange=max([Sf(:);St(:)]);
+ax=nexttile(layout);
+imagesc(tw,f,asinh(W/scale)); axis xy; ylim(ylimHz);
+clim(ax,[-wvdRange wvdRange]);
+title('(a) Original WVD'); xlabel('Time (s)'); ylabel('Frequency (Hz)');
+
+ax=nexttile(layout);
+imagesc(tw,f,Sf); axis xy; ylim(ylimHz); clim(ax,[0 max(scoreRange,eps)]);
+title('(b) Frequency-direction triplet detection');
+xlabel('Time (s)'); ylabel('Frequency (Hz)');
+
+ax=nexttile(layout);
+imagesc(tw,f,St); axis xy; ylim(ylimHz); clim(ax,[0 max(scoreRange,eps)]);
+title('(c) Time-direction triplet detection');
+xlabel('Time (s)'); ylabel('Frequency (Hz)');
+
+ax=nexttile(layout);
+imagesc(tw,f,asinh((W.*Mf)/scale)); axis xy; ylim(ylimHz);
+clim(ax,[-wvdRange wvdRange]);
+title('(d) Frequency-only output WVD');
+xlabel('Time (s)'); ylabel('Frequency (Hz)');
+
+ax=nexttile(layout);
+imagesc(tw,f,asinh((W.*Mt)/scale)); axis xy; ylim(ylimHz);
+clim(ax,[-wvdRange wvdRange]);
+title('(e) Time-only output WVD');
+xlabel('Time (s)'); ylabel('Frequency (Hz)');
+
+ax=nexttile(layout);
+imagesc(tw,f,double(M)); axis xy; ylim(ylimHz); clim(ax,[0 1]);
+colormap(ax,gray(2));
+title('(f) Geometric-mean fusion mask');
+xlabel('Time (s)'); ylabel('Frequency (Hz)');
+
+ax=nexttile(layout);
+imagesc(tw,f,asinh(Wout/scale)); axis xy; ylim(ylimHz);
+clim(ax,[-wvdRange wvdRange]);
+title('(g) Final fused WVD');
+xlabel('Time (s)'); ylabel('Frequency (Hz)');
+
+ax=nexttile(layout);
 if ~isempty(evidence)
     [freq,pRaw]=periodogram_curve(evidence.raw,evidence.dt);
     [~,pFused]=periodogram_curve(evidence.fused,evidence.dt);
@@ -466,32 +498,55 @@ if ~isempty(evidence)
     back=freq>=50 & freq<=200 & ~target;
     rawDb=10*log10(pRaw/(median(pRaw(back))+eps)+eps);
     fusedDb=10*log10(pFused/(median(pFused(back))+eps)+eps);
-    h1=plot(freq,rawDb,'Color',[.5 .5 .5]); hold on;
-    h2=plot(freq,fusedDb,'b');
+    h1=plot(freq,rawDb,'Color',[.42 .42 .42],'LineWidth',0.9); hold on;
+    h2=plot(freq,fusedDb,'b','LineWidth',1.0);
     displayMaxHz=50*ceil(3.5*evidence.expected_hz/50);
     if strcmp(evidence.fault_name,'healthy')
         markerName='BPFO (reference)';
     else
         markerName=evidence.fault_name;
     end
+    shown=freq<=displayMaxHz;
+    visible=[rawDb(shown) fusedDb(shown)];
+    visible=visible(isfinite(visible));
+    low=min(visible); high=max(visible);
+    span=max(high-low,1);
+    ylim([low-0.12*span high+0.28*span]);
     for harmonic=1:3
-        xline(harmonic*evidence.expected_hz,'r--', ...
-            sprintf('%d×%s',harmonic,markerName));
+        markerHz=harmonic*evidence.expected_hz;
+        xline(markerHz,'r--','LineWidth',0.8);
+        text(markerHz,high+0.17*span, ...
+            sprintf('%d×%s',harmonic,markerName), ...
+            'Color',[.75 0 0],'FontSize',9,'FontWeight','bold', ...
+            'HorizontalAlignment','center','VerticalAlignment','middle', ...
+            'BackgroundColor','w','Margin',1);
     end
     xlim([0 displayMaxHz]); ylabel('Periodic power / median (dB)');
     % Archive the exact plotted series for inspecting harmonic neighborhoods.
-    shown=freq<=displayMaxHz;
     plotSeries=table(freq(shown).',rawDb(shown).',fusedDb(shown).', ...
         'VariableNames',{'frequency_hz','original_db','fused_db'});
     writetable(plotSeries,fullfile(outdir,'periodicity_plot.csv'));
-    title('Fault repetition evidence'); legend([h1 h2],{'Original','Fused'},'Location','southeast');
+    title('(h) Fault repetition evidence');
+    legend([h1 h2],{'Original','Fused'},'Location','southoutside', ...
+        'Orientation','horizontal','FontSize',9);
     xlabel('Repetition frequency (Hz)');
 else
     imagesc(tw,f,asinh(Wauto/scale)); axis xy; ylim(ylimHz);
-    title('Oracle self terms'); ylabel('Frequency (Hz)');
+    clim(ax,[-wvdRange wvdRange]);
+    title('(h) Oracle self terms (synthetic truth)');
+    ylabel('Frequency (Hz)');
     xlabel('Time (s)');
 end
-exportgraphics(fig,fullfile(outdir,'paper_figure.png'),'Resolution',180);
+allAxes=findall(fig,'Type','axes');
+set(allAxes,'FontName','Arial','FontSize',9,'LineWidth',0.8, ...
+    'Box','on','TickDir','out');
+for k=1:numel(allAxes)
+    allAxes(k).Title.FontSize=11;
+    allAxes(k).XLabel.FontSize=10;
+    allAxes(k).YLabel.FontSize=10;
+end
+exportgraphics(fig,fullfile(outdir,'paper_figure.png'),'Resolution',300);
+exportgraphics(fig,fullfile(outdir,'paper_figure.pdf'),'ContentType','vector');
 close(fig);
 end
 

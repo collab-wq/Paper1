@@ -1,4 +1,4 @@
-name: Paper1 harmonic plot refresh
+name: Paper1 eight-panel figure refresh
 
 on:
   push:
@@ -30,6 +30,10 @@ jobs:
         uses: matlab-actions/setup-matlab@v3
         with:
           products: Signal_Processing_Toolbox
+      - name: Redraw synthetic truth figure
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "main_Paper1('synthetic')"
       - name: Redraw CWRU 130 outer-race figure
         uses: matlab-actions/run-command@v3
         with:
@@ -107,22 +111,28 @@ jobs:
               writer.writeheader()
               writer.writerows(output)
           PY
-      - name: Publish the three representative figures
+      - name: Publish the four representative PNG and PDF figures
         run: |
           cp results/cwru-130/paper_figure.png figures/cwru-130.png
           cp results/paderborn/N15_M07_F10_KA04_3-start128001/paper_figure.png figures/paderborn-ka04.png
           cp results/xjtu/Bearing1_1-123-start4097/paper_figure.png figures/xjtu-bearing1_1-late.png
+          cp results/synthetic/paper_figure.png figures/synthetic.png
+          cp results/cwru-130/paper_figure.pdf figures/cwru-130.pdf
+          cp results/paderborn/N15_M07_F10_KA04_3-start128001/paper_figure.pdf figures/paderborn-ka04.pdf
+          cp results/xjtu/Bearing1_1-123-start4097/paper_figure.pdf figures/xjtu-bearing1_1-late.pdf
+          cp results/synthetic/paper_figure.pdf figures/synthetic.pdf
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add figures/cwru-130.png figures/paderborn-ka04.png figures/xjtu-bearing1_1-late.png
-          git commit -m 'Update representative harmonic plots'
+          git add figures/*.png figures/*.pdf
+          git commit -m 'Publish eight-panel representative figures [skip ci]'
           git push origin HEAD:work
       - name: Save complete plot generation outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: paper1-harmonic-figures
+          name: paper1-eight-panel-figures
           path: |
+            results/synthetic/
             results/cwru-130/
             results/paderborn/N15_M07_F10_KA04_3-start128001/
             results/xjtu/Bearing1_1-123-start4097/
@@ -130,4 +140,6 @@ jobs:
             figures/cwru-130.png
             figures/paderborn-ka04.png
             figures/xjtu-bearing1_1-late.png
+            figures/synthetic.png
+            figures/*.pdf
           if-no-files-found: warn
