@@ -484,7 +484,7 @@ if ~isempty(evidence)
     plotSeries=table(freq(shown).',rawDb(shown).',fusedDb(shown).', ...
         'VariableNames',{'frequency_hz','original_db','fused_db'});
     writetable(plotSeries,fullfile(outdir,'periodicity_plot.csv'));
-    title('Fault repetition evidence'); legend([h1 h2],{'Original','Fused'},'Location','northeast');
+    title('Fault repetition evidence'); legend([h1 h2],{'Original','Fused'},'Location','southeast');
     xlabel('Repetition frequency (Hz)');
 else
     imagesc(tw,f,asinh(Wauto/scale)); axis xy; ylim(ylimHz);
