@@ -5,7 +5,7 @@ if ~exist(outdir,'dir'), mkdir(outdir); end
 diary(fullfile(outdir,'verification.log'));
 cleanup=onCleanup(@() diary('off'));
 
-f=(0:10:1400)'; tw=(0:199)/1000; df=median(diff(f));
+f=(0:10:1400)'; tw=(0:199)'/1000; df=median(diff(f));
 centers=[200 500 800 1100]; signs=[1 -1 1 -1];
 pulse=0.08+2*exp(-0.5*((tw-0.04)/0.004).^2) ...
     +2*exp(-0.5*((tw-0.09)/0.004).^2) ...
@@ -13,9 +13,9 @@ pulse=0.08+2*exp(-0.5*((tw-0.04)/0.004).^2) ...
     +2*exp(-0.5*((tw-0.18)/0.004).^2);
 W=zeros(numel(f),numel(tw));
 for r=1:4
-    W=W+signs(r)*(5-r)*exp(-0.5*((f-centers(r))/18).^2)*pulse;
+    W=W+signs(r)*(5-r)*exp(-0.5*((f-centers(r))/18).^2)*pulse.';
 end
-W=W+0.04*sin(2*pi*83*tw).*exp(-0.5*((f-650)/200).^2);
+W=W+0.04*exp(-0.5*((f-650)/200).^2)*sin(2*pi*83*tw).';
 
 g=hann(11); g=g/sum(g);
 bar=W(:,35:45)*g;
@@ -73,11 +73,11 @@ for k=1:3
 end
 
 % One candidate from each band: both endpoints accumulate, midpoint does not.
-fSmall=(0:10:700)'; tSmall=(0:79)/1000;
+fSmall=(0:10:700)'; tSmall=(0:79)'/1000;
 small=zeros(numel(fSmall),numel(tSmall));
 small(fSmall==200,:)=1;
 small(fSmall==500,:)=-1;
-small(fSmall==350,:)=0.5*sin(2*pi*90*tSmall);
+small(fSmall==350,:)=0.5*sin(2*pi*90*tSmall).';
 p=parameters([200 200;500 500]);
 p.spanHz=20; p.freqAvgHz=20;
 [SfSmall,~,~,~,~,smallCounts]= ...
