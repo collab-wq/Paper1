@@ -77,6 +77,10 @@ Paderborn KA04 六段目标窗峰 73.24–77.15 Hz，融合对比度中位数约
 
 ### 新分支真实数据执行核查
 
-[依赖自检的 MATLAB 运行](https://github.com/collab-wq/Paper1/actions/runs/43605759668)已结束：九个数据集 × R 作业及 CSV 聚合作业均成功。`MULTIBAND_RESULTS.csv` 恰有 105 行，聚合程序对每个成功行要求对应的 MATLAB `result.json` 存在、实际频带数等于指定 R，并阻止重复片段键；结果为 104 行 `PASS`、1 行 `FAIL`。失败行是 CWRU `118.mat`、起始样本 1、R=4，原因是只有 3 个满足既定间隔的候选峰。该失败不属于 MATLAB 运行崩溃，明确保留于 CSV 和对应作业日志。
+[依赖自检的 MATLAB 首次完整运行](https://github.com/collab-wq/Paper1/actions/runs/43605759668)已结束：九个数据集 × R 作业及 CSV 聚合作业均成功。`MULTIBAND_RESULTS.csv` 恰有 105 行，聚合程序对每个成功行要求对应的 MATLAB `result.json` 存在、实际频带数等于指定 R，并阻止重复片段键；结果为 104 行 `PASS`、1 行 `FAIL`。失败行是 CWRU `118.mat`、起始样本 1、R=4，原因是只有 3 个满足既定间隔的候选峰。该失败不属于 MATLAB 运行崩溃，明确保留于 CSV 和对应作业日志。
 
 三个数据集分别沿用既有下载与完整性校验脚本；原始输入片段、采样率、转速来源、时间窗、步长、阈值、目标窗和背景统计未改变。自动选带统计量与检测支撑按本分支新定义变化，因此 R=2 不是 `work` 旧方法的数值复现，跨方法比较不得把两者混为仅改变频带数量。由 `MULTIBAND_RESULTS.csv` 可见，增加带数没有普遍提高目标峰定位或对比度，且 Paderborn KI04 的目标误差中位数随 R 增大而恶化；不得选择单一有利图片替代全量判断。原有 `FINAL_RESULTS.md` 和 `AUDIT_RESULTS.csv` 保留为 `work` 方法的历史参考。
+
+### 绘图修正后的复核
+
+纵轴标签与高频刻度的重叠只涉及 `plot_result` 排版。修正后[九组 MATLAB 重绘运行](https://github.com/collab-wq/Paper1/actions/runs/43607357936)再次全部完成，`self-check` 与九个真实数据作业均通过；重绘聚合仍为 105 行、104 成功、1 个同样的候选带不足失败。该运行最初的聚合作业因 CSV 与已提交文件完全相同而在空 `git commit` 处返回失败；已在分支工作流中加入无变化时跳过提交的处理。随后[独立数值复核与图像发布运行](https://github.com/collab-wq/Paper1/actions/runs/43619390690)从全部九个重绘 Artifact 重新聚合，`cmp` 证实 105 行 CSV 与已提交版本逐字节一致，作业成功。三张最终代表 PNG 经正常尺寸与放大检查，频率轴标签与刻度分开，八联顺序、单位及谐波标记完整。
