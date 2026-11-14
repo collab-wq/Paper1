@@ -527,8 +527,8 @@ if ~isempty(evidence)
         'VariableNames',{'frequency_hz','original_db','fused_db'});
     writetable(plotSeries,fullfile(outdir,'periodicity_plot.csv'));
     title('(h) Fault repetition evidence');
-    legend([h1 h2],{'Original','Fused'},'Location','southeast', ...
-        'FontSize',9);
+    evidenceLegend=legend([h1 h2],{'Original','Fused'}, ...
+        'Location','southeast','FontSize',9);
     xlabel('Repetition frequency (Hz)');
 else
     imagesc(tw,f,asinh(Wauto/scale)); axis xy; ylim(ylimHz);
@@ -545,9 +545,14 @@ for k=1:numel(allAxes)
     allAxes(k).XLabel.FontSize=10;
     allAxes(k).YLabel.FontSize=10;
 end
-% Keep exportgraphics from trimming the first titles and last axis labels.
-annotation(fig,'line',[0.02 0.98],[0.99 0.99],'Color','w');
-annotation(fig,'line',[0.02 0.98],[0.01 0.01],'Color','w');
+if ~isempty(evidence)
+    drawnow;
+    evidenceLegend.Units='normalized';
+    plotPosition=ax.Position;
+    evidenceLegend.Position=[plotPosition(1)+0.65*plotPosition(3), ...
+        plotPosition(2)+0.035*plotPosition(4), ...
+        0.31*plotPosition(3),0.14*plotPosition(4)];
+end
 exportgraphics(fig,fullfile(outdir,'paper_figure.png'),'Resolution',300);
 exportgraphics(fig,fullfile(outdir,'paper_figure.pdf'),'ContentType','vector');
 close(fig);
