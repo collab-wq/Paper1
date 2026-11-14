@@ -464,10 +464,26 @@ if ~isempty(evidence)
     [~,pFused]=periodogram_curve(evidence.fused,evidence.dt);
     target=freq>=0.8*evidence.expected_hz & freq<=1.2*evidence.expected_hz;
     back=freq>=50 & freq<=200 & ~target;
-    h1=plot(freq,10*log10(pRaw/(median(pRaw(back))+eps)+eps),'Color',[.5 .5 .5]); hold on;
-    h2=plot(freq,10*log10(pFused/(median(pFused(back))+eps)+eps),'b');
-    xline(evidence.expected_hz,'r--',evidence.fault_name);
-    xlim([50 200]); ylabel('Periodic power / median (dB)');
+    rawDb=10*log10(pRaw/(median(pRaw(back))+eps)+eps);
+    fusedDb=10*log10(pFused/(median(pFused(back))+eps)+eps);
+    h1=plot(freq,rawDb,'Color',[.5 .5 .5]); hold on;
+    h2=plot(freq,fusedDb,'b');
+    displayMaxHz=50*ceil(3.5*evidence.expected_hz/50);
+    if strcmp(evidence.fault_name,'healthy')
+        markerName='BPFO (reference)';
+    else
+        markerName=evidence.fault_name;
+    end
+    for harmonic=1:3
+        xline(harmonic*evidence.expected_hz,'r--', ...
+            sprintf('%d×%s',harmonic,markerName));
+    end
+    xlim([0 displayMaxHz]); ylabel('Periodic power / median (dB)');
+    % Archive the exact plotted series for inspecting harmonic neighborhoods.
+    shown=freq<=displayMaxHz;
+    plotSeries=table(freq(shown).',rawDb(shown).',fusedDb(shown).', ...
+        'VariableNames',{'frequency_hz','original_db','fused_db'});
+    writetable(plotSeries,fullfile(outdir,'periodicity_plot.csv'));
     title('Fault repetition evidence'); legend([h1 h2],{'Original','Fused'},'Location','northeast');
     xlabel('Repetition frequency (Hz)');
 else
