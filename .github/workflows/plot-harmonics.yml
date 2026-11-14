@@ -1,0 +1,145 @@
+name: Paper1 eight-panel figure refresh
+
+on:
+  push:
+    branches: [work]
+    paths:
+      - .github/workflows/plot-harmonics.yml
+      - main_Paper1.m
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  figures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install official archive reader
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq unar
+      - name: Fetch the previously verified original recordings
+        run: |
+          bash scripts/download_cwru.sh
+          bash scripts/download_paderborn.sh
+          python scripts/download_xjtu.py --fetch
+      - name: Install MATLAB and Signal Processing Toolbox
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Redraw synthetic truth figure
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "main_Paper1('synthetic')"
+      - name: Redraw CWRU 130 outer-race figure
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "main_Paper1('cwru','input/cwru/130.mat',1)"
+      - name: Redraw Paderborn KA04 outer-race figure
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "main_Paper1('paderborn','input/paderborn/KA04/N15_M07_F10_KA04_3.mat',128001)"
+      - name: Redraw late XJTU-SY Bearing1_1 figure
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_1/123.csv',4097)"
+      - name: Verify unchanged diagnostic indicators and summarize plot peaks
+        run: |
+          python - <<'PY'
+          import csv, json, math, pathlib
+
+          reference = list(csv.DictReader(open('AUDIT_RESULTS.csv')))
+          cases = [
+              ('cwru', '130.mat', 1, 'results/cwru-130'),
+              ('paderborn', 'N15_M07_F10_KA04_3.mat', 128001,
+               'results/paderborn/N15_M07_F10_KA04_3-start128001'),
+              ('xjtu', '123.csv', 4097, 'results/xjtu/Bearing1_1-123-start4097'),
+          ]
+          output = []
+          for dataset, name, start, folder in cases:
+              result = json.loads(pathlib.Path(folder, 'result.json').read_text())
+              row = next(r for r in reference if r['dataset'] == dataset
+                         and r['file'] == name and int(r['start_sample']) == start)
+              if dataset == 'cwru':
+                  expected = result['expected_fault_hz']
+                  keys = ('raw_periodicity_peak_hz', 'fused_periodicity_peak_hz',
+                          'raw_fault_contrast', 'fused_fault_contrast')
+              else:
+                  expected = result['bpfo_hz']
+                  keys = ('raw_bpfo_peak_hz', 'fused_bpfo_peak_hz',
+                          'raw_bpfo_contrast', 'fused_bpfo_contrast')
+              columns = ('raw_target_peak_hz', 'fused_target_peak_hz',
+                         'raw_target_contrast', 'fused_target_contrast')
+              for key, column in zip(keys, columns):
+                  actual, prior = result[key], float(row[column])
+                  assert math.isclose(actual, prior, rel_tol=1e-8, abs_tol=1e-8), (
+                      dataset, name, key, actual, prior)
+              assert math.isclose(result['retained_pixel_fraction'],
+                                  float(row['retained_pixel_fraction']),
+                                  rel_tol=1e-8, abs_tol=1e-8)
+              points = list(csv.DictReader(open(pathlib.Path(folder,
+                                                          'periodicity_plot.csv'))))
+              axis_max = 50 * math.ceil(3.5 * expected / 50)
+              assert math.isclose(float(points[0]['frequency_hz']), 0)
+              assert float(points[-1]['frequency_hz']) <= axis_max
+              assert float(points[-1]['frequency_hz']) >= 3 * expected
+              for harmonic in (1, 2, 3):
+                  center = harmonic * expected
+                  # Display-only neighborhood; these maxima are not diagnostic metrics.
+                  near = [p for p in points if abs(float(p['frequency_hz']) - center)
+                          <= 0.2 * expected]
+                  assert near
+                  raw = max(near, key=lambda p: float(p['original_db']))
+                  fused = max(near, key=lambda p: float(p['fused_db']))
+                  summary = dict(dataset=dataset, file=name, start_sample=start,
+                      marker=result['fault_name'] if dataset != 'cwru' else
+                      result['fault_frequency_name'], harmonic=harmonic,
+                      theoretical_hz=center, axis_max_hz=axis_max,
+                      original_local_peak_hz=raw['frequency_hz'],
+                      original_local_peak_db=raw['original_db'],
+                      fused_local_peak_hz=fused['frequency_hz'],
+                      fused_local_peak_db=fused['fused_db'])
+                  output.append(summary)
+                  print('PLOT_HARMONIC', summary)
+              print('DIAGNOSTIC_METRICS_MATCH', dataset, name, start)
+          dest = pathlib.Path('results/harmonic_display_summary.csv')
+          with dest.open('w', newline='') as file:
+              writer = csv.DictWriter(file, fieldnames=output[0].keys())
+              writer.writeheader()
+              writer.writerows(output)
+          PY
+      - name: Publish the four representative PNG and PDF figures
+        run: |
+          cp results/cwru-130/paper_figure.png figures/cwru-130.png
+          cp results/paderborn/N15_M07_F10_KA04_3-start128001/paper_figure.png figures/paderborn-ka04.png
+          cp results/xjtu/Bearing1_1-123-start4097/paper_figure.png figures/xjtu-bearing1_1-late.png
+          cp results/synthetic/paper_figure.png figures/synthetic.png
+          cp results/cwru-130/paper_figure.pdf figures/cwru-130.pdf
+          cp results/paderborn/N15_M07_F10_KA04_3-start128001/paper_figure.pdf figures/paderborn-ka04.pdf
+          cp results/xjtu/Bearing1_1-123-start4097/paper_figure.pdf figures/xjtu-bearing1_1-late.pdf
+          cp results/synthetic/paper_figure.pdf figures/synthetic.pdf
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add figures/*.png figures/*.pdf
+          git commit -m 'Publish eight-panel representative figures [skip ci]'
+          git push origin HEAD:work
+      - name: Save complete plot generation outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper1-eight-panel-figures
+          path: |
+            results/synthetic/
+            results/cwru-130/
+            results/paderborn/N15_M07_F10_KA04_3-start128001/
+            results/xjtu/Bearing1_1-123-start4097/
+            results/harmonic_display_summary.csv
+            figures/cwru-130.png
+            figures/paderborn-ka04.png
+            figures/xjtu-bearing1_1-late.png
+            figures/synthetic.png
+            figures/*.pdf
+          if-no-files-found: warn

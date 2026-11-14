@@ -1,0 +1,91 @@
+name: Paper1 final consistency audit
+on:
+  push:
+    branches: [work]
+    paths:
+      - .github/workflows/audit.yml
+      - matlab/run_audit.m
+      - matlab/run_synthetic_batch.m
+      - matlab/run_cwru_batch.m
+      - matlab/run_paderborn_batch.m
+      - matlab/run_xjtu_batch.m
+      - scripts/audit_results.py
+      - main_Paper1.m
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download fixed prior MATLAB results
+        uses: actions/download-artifact@v4
+        with:
+          name: matlab-results
+          run-id: 42999351528
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: reference/cwru
+      - uses: actions/download-artifact@v4
+        with:
+          name: paderborn-results
+          run-id: 42999351710
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: reference/paderborn
+      - uses: actions/download-artifact@v4
+        with:
+          name: xjtu-results
+          run-id: 42999351656
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: reference/xjtu
+      - name: Install official archive reader
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq unar
+      - name: Fetch and verify the same original input files
+        run: |
+          bash scripts/download_cwru.sh
+          bash scripts/download_paderborn.sh
+          python scripts/download_xjtu.py --fetch
+      - name: Install MATLAB and Signal Processing Toolbox
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Validate CWRU metadata and rerun all prior experiments
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); validate_cwru; run_audit"
+      - name: Compare every rerun with pinned reference artifacts
+        run: python scripts/audit_results.py
+      - name: Publish corrected representative figures and audit table
+        run: |
+          cp results/synthetic/paper_figure.png figures/synthetic.png
+          cp results/cwru-130/paper_figure.png figures/cwru-130.png
+          cp results/paderborn/N15_M07_F10_KA04_3-start128001/paper_figure.png figures/paderborn-ka04.png
+          cp results/xjtu/Bearing1_1-123-start4097/paper_figure.png figures/xjtu-bearing1_1-late.png
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add figures AUDIT_RESULTS.csv
+          if ! git diff --cached --quiet; then
+            git commit -m 'Add audited metrics and corrected figures'
+            git push origin HEAD:work
+          else
+            echo 'Audit metrics and figures match the committed versions'
+          fi
+      - name: Save full audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: paper1-audit
+          path: |
+            AUDIT_RESULTS.csv
+            results/audit_summary.json
+            results/**/result.json
+            results/**/experiment.log
+            results/**/paper_figure.png
+            results/paderborn/repeat_summary.csv
+            results/xjtu/life_summary.csv
+            figures/*.png
+          if-no-files-found: warn

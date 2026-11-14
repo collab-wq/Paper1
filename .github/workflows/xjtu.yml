@@ -1,0 +1,66 @@
+name: XJTU-SY real bearing validation
+
+on:
+  push:
+    branches: [work]
+    paths:
+      - .github/workflows/xjtu.yml
+      - scripts/download_xjtu.py
+      - matlab/run_xjtu_batch.m
+      - main_Paper1.m
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the author's public distribution and selected mirror
+        run: |
+          for url in \
+            'https://www.dropbox.com/sh/qka3b73wuvn5l7a/AADr6oXKbafhOlrBLCNgonzua?dl=0' \
+            'https://drive.google.com/open?id=1_ycmG46PARiykt82ShfnFfyQsaXv3_VK'; do
+            curl -L -sS -o /dev/null -w 'AUTHOR_SHARE_HTTP %{http_code} %{url_effective}\n' "$url" || true
+          done
+      - name: Fetch six verified XJTU-SY life snapshots
+        run: python scripts/download_xjtu.py --fetch
+      - name: Validate original CSV records
+        run: |
+          python - <<'PY'
+          import csv, glob, hashlib, json, math, os
+          base='input/xjtu-sy/35Hz12kN/Bearing1_1'
+          report=[]
+          for path in sorted(glob.glob(base+'/*.csv')):
+              with open(path,newline='') as f:
+                  reader=csv.reader(f)
+                  header=next(reader)
+                  rows=0
+                  for row in reader:
+                      assert len(row)==2 and all(math.isfinite(float(v)) for v in row)
+                      rows+=1
+              assert rows==32768, (path,rows)
+              print('CSV_VALID',os.path.basename(path),header,rows)
+              report.append({'file':os.path.basename(path),'header':header,'rows':rows})
+          assert len(report)==6
+          with open('input/xjtu-sy/csv_validation.json','w') as f:
+              json.dump(report,f,indent=2)
+          PY
+      - name: Install MATLAB and Signal Processing Toolbox
+        uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run early, middle, and late original-WVD analysis
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); run_xjtu_batch"
+      - name: Save source and validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xjtu-results
+          path: |
+            input/xjtu-sy/provenance.json
+            input/xjtu-sy/csv_validation.json
+            results/xjtu/
+          if-no-files-found: warn
