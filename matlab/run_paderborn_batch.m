@@ -1,7 +1,9 @@
-function run_paderborn_batch
+function run_paderborn_batch(numBands)
 % Three records per bearing and two independent segments per record.
+if nargin<1, numBands=2; end
 ids={'K001','KA04','KI04'};
-outdir=fullfile('results','paderborn');
+outdir=fullfile('results','absolute-support-multiband','paderborn', ...
+    sprintf('R%d',numBands));
 if ~exist(outdir,'dir'), mkdir(outdir); end
 fid=fopen(fullfile(outdir,'repeat_summary.csv'),'w');
 assert(fid>0);
@@ -17,7 +19,7 @@ for k=1:numel(ids)
         file=fullfile('input','paderborn',id, ...
             sprintf('N15_M07_F10_%s_%d.mat',id,rec));
         for startIndex=[64001 128001]
-            r=main_Paper1('paderborn',file,startIndex);
+            r=main_Paper1('paderborn',file,startIndex,numBands);
             fprintf(fid,['%s,%d,%d,%.6f,%.6f,%.6f,%.6f,%.6f,' ...
                 '%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.8f,%d\n'], ...
                 id,rec,startIndex,r.rpm,r.measured_force_N,r.measured_torque_Nm, ...

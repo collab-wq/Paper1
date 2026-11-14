@@ -1,0 +1,39 @@
+name: Paper1 absolute support multiband experiment
+
+on:
+  push:
+    branches: [experiment/absolute-support-multiband]
+    paths:
+      - .github/workflows/absolute-support-multiband.yml
+      - main_Paper1.m
+      - dual_detector_abs_multiband.m
+      - band_union.m
+      - select_resonance_bands.m
+      - matlab/verify_abs_support_multiband.m
+      - matlab/run_*_batch.m
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Verify absolute support and all band combinations without real data
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); verify_abs_support_multiband; run_synthetic_batch(2)"
+      - name: Archive independent self-check and synthetic regression
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: absolute-support-multiband-self-check
+          path: results/absolute-support-multiband/
+          if-no-files-found: warn

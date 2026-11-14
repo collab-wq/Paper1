@@ -1,12 +1,16 @@
-function result = main_Paper1(mode, dataFile, startIndex)
+function result = main_Paper1(mode, dataFile, startIndex, numBands)
 % Paper1: direct-WVD dual-direction endpoint/midpoint/endpoint detector.
 % Usage: main_Paper1('synthetic'), main_Paper1('cwru',file), or
 %        main_Paper1('paderborn',file,startIndex)
 if nargin<1, mode='synthetic'; end
 if nargin<2, dataFile='input/cwru/130.mat'; end
 if nargin<3, startIndex=1; end
+if nargin<4, numBands=2; end
+assert(isscalar(numBands) && ismember(numBands,[2 3 4]), ...
+    'numBands must be 2, 3, or 4');
 mode=char(mode);
 if strcmp(mode,'synthetic')
+    assert(numBands==2,'Synthetic truth has exactly two physical resonance bands');
     rng(7); fs=4000; t=(0:round(0.27*fs)-1)'/fs;
     impactTimes=0.02:0.05:0.22; fc=[650 980]; amp=[1 0.7]; beta=110;
     atoms=zeros(numel(t),numel(impactTimes)*2); a=0;
@@ -79,6 +83,8 @@ elseif strcmp(mode,'xjtu')
 else
     error('Unknown mode %s',mode);
 end
+outdir=fullfile('results','absolute-support-multiband', ...
+    outdir(numel('results')+2:end),sprintf('R%d',numBands));
 if ~exist(outdir,'dir'), mkdir(outdir); end
 diary(fullfile(outdir,'experiment.log'));
 cleanup=onCleanup(@() diary('off'));
@@ -97,25 +103,21 @@ if isempty(p.bands)
         smoothHz=80; lowerHz=1500; upperHz=min(4500,0.9*fs/2);
         minBandDistanceHz=600; bandHalfwidthHz=175;
     end
-    profile=movmean(mean(max(W,0),2),max(3,round(smoothHz/df)));
-    eligible=f>=lowerHz & f<=upperHz;
-    [pk,loc]=findpeaks(profile(eligible),f(eligible), ...
-        'MinPeakDistance',minBandDistanceHz);
-    [~,rank]=sort(pk,'descend');
-    assert(numel(rank)>=2,'Two distinct WVD resonance bands not found');
-    p.bands=sort(loc(rank(1:2)));
-    p.bands=[p.bands(:)-bandHalfwidthHz,p.bands(:)+bandHalfwidthHz];
+    p.bands=select_resonance_bands(W,f,numBands,smoothHz, ...
+        lowerHz,upperHz,minBandDistanceHz,bandHalfwidthHz);
 end
+assert(size(p.bands,1)==numBands);
 if strcmp(mode,'paderborn') || strcmp(mode,'xjtu')
     % The original signal is passed to wvd. This crops only the calculated
     % WVD frequency grid, retaining both selected bands and their midpoints.
-    keep=f>=max(0,p.bands(1,1)-600) & ...
-        f<=min(fs/2,p.bands(2,2)+600);
+    keep=f>=max(0,min(p.bands(:,1))-600) & ...
+        f<=min(fs/2,max(p.bands(:,2))+600);
     W=W(keep,:); f=f(keep); F=numel(f);
 end
-fprintf('Mode %s, fs %g Hz, WVD %d x %d, bands [%.1f %.1f], [%.1f %.1f] Hz\n', ...
-    mode,fs,F,T,p.bands(1,1),p.bands(1,2),p.bands(2,1),p.bands(2,2));
-[Sf,St,Etime,peakIdx,pairCount]=dual_detector(W,f,tw,p);
+fprintf('Mode %s, R %d, fs %g Hz, WVD %d x %d, bands (Hz):\n', ...
+    mode,numBands,fs,F,T);
+disp(p.bands);
+[Sf,St,Etime,peakIdx,pairCount,frequencyPairs]=dual_detector_abs_multiband(W,f,tw,p);
 Mf=(Sf>p.freqThr) & (Etime>p.activityThr);
 Mt=St>p.timeThr;
 Mj=Mf & Mt;
@@ -126,10 +128,14 @@ Wout=W.*M;
 fprintf('Detected candidate times (ms):'); fprintf(' %.2f',1e3*tw(peakIdx)); fprintf('\n');
 fprintf('Eligible time pairs %d; fusion threshold %.5f; retained pixels %.2f%%\n', ...
     pairCount,fusionThreshold,100*nnz(M)/numel(M));
-result=struct('mode',mode,'fs_hz',fs,'wvd_size',size(W), ...
+result=struct('mode',mode,'num_bands',numBands,'fs_hz',fs,'wvd_size',size(W), ...
     'bands_hz',p.bands,'fusion_threshold',fusionThreshold, ...
     'candidate_impacts_s',tw(peakIdx),'eligible_time_pairs',pairCount, ...
-    'retained_pixel_fraction',nnz(M)/numel(M),'parameters',p);
+    'retained_pixel_fraction',nnz(M)/numel(M),'parameters',p, ...
+    'frequency_band_pairs',nchoosek(1:numBands,2), ...
+    'frequency_valid_pairs_per_window',sum(frequencyPairs>0,2), ...
+    'frequency_pair_count',sum(frequencyPairs>0,'all'), ...
+    'frequency_triplet_count',sum(frequencyPairs,'all'));
 if strcmp(mode,'synthetic')
     Wauto=zeros(size(W));
     for j=1:size(atoms,2)
@@ -163,8 +169,7 @@ elseif strcmp(mode,'cwru')
             error('Fault-frequency evidence is specified for 105, 118, 130 only');
     end
     expected=faultFactor*rpm/60;
-    selected=(f>=p.bands(1,1)&f<=p.bands(1,2)) | ...
-        (f>=p.bands(2,1)&f<=p.bands(2,2));
+    selected=band_union(f,p.bands);
     activityRaw=sum(max(W(selected,:),0),1)*df;
     activityOut=sum(max(Wout(selected,:),0),1)*df;
     [peakRaw,contrastRaw]=fault_evidence(activityRaw,dt,expected);
@@ -214,8 +219,7 @@ else
     ratio=geometry.ball_diameter_mm/geometry.pitch_diameter_mm;
     bpfo=geometry.balls/2*(1-ratio)*rpm/60;
     bpfi=geometry.balls/2*(1+ratio)*rpm/60;
-    selected=(f>=p.bands(1,1)&f<=p.bands(1,2)) | ...
-        (f>=p.bands(2,1)&f<=p.bands(2,2));
+    selected=band_union(f,p.bands);
     activityRaw=sum(max(W(selected,:),0),1)*df;
     activityOut=sum(max(Wout(selected,:),0),1)*df;
     [rawBpfo,rawBpfoContrast]=fault_evidence(activityRaw,dt,bpfo);
@@ -269,8 +273,8 @@ else
     else, expected=bpfo; end
     evidence=struct('raw',activityRaw,'fused',activityOut, ...
         'dt',dt,'expected_hz',expected,'fault_name',faultName);
-    plotLimits=[max(0,p.bands(1,1)-600) ...
-        min(fs/2,p.bands(2,2)+600)];
+    plotLimits=[max(0,min(p.bands(:,1))-600) ...
+        min(fs/2,max(p.bands(:,2))+600)];
     plot_result(tw,f,W,Sf,St,Mf,Mt,M,Wout,outdir,plotLimits,[],evidence);
     % Artifact grids are thinned only after all calculations. The full
     % resolution input signal and published plot remain archived.
@@ -326,96 +330,6 @@ rpm=mean(double(record.Y(s).Data(:)));
 forceN=mean(double(record.Y(q).Data(:)));
 torqueNm=mean(double(record.Y(m).Data(:)));
 assert(rpm>500 && rpm<2500 && all(isfinite(x)));
-end
-
-function [Sf,St,Etime,peakIdx,pairCount]=dual_detector(W,f,tw,p)
-F=numel(f); T=numel(tw); df=median(diff(f)); dt=median(diff(tw));
-hopN=max(1,round(p.hopSec/dt)); centers=unique([1:hopN:T,T]); Q=numel(centers);
-raw=zeros(F,Q); activity=zeros(Q,1);
-for q=1:Q
-    idx=find(abs(tw-tw(centers(q)))<=p.Lsec/2);
-    if numel(idx)<5, continue; end
-    g=hann(numel(idx)); g=g(:)/(sum(g)+eps);
-    Wq=W(:,idx); bar=Wq*g;
-    sd=sqrt(max((Wq.^2)*g-bar.^2,0)); pos=max(bar,0);
-    mu=nan(2,1); energy=zeros(2,1);
-    for r=1:2
-        ii=find(f>=p.bands(r,1)&f<=p.bands(r,2));
-        mass=sum(pos(ii)); energy(r)=mass*df;
-        if mass>1e-12, mu(r)=sum(f(ii).*pos(ii))/mass; end
-    end
-    activity(q)=sqrt(prod(energy));
-    if any(~isfinite(mu)), continue; end
-    ci=find(f>=p.bands(1,1)&f<=p.bands(1,2)&abs(f-mu(1))<=p.spanHz);
-    cj=find(f>=p.bands(2,1)&f<=p.bands(2,2)&abs(f-mu(2))<=p.spanHz);
-    local=zeros(F,1); floorSd=0.01*max(sd)+eps;
-    for ai=1:numel(ci)
-        i=ci(ai); if pos(i)<=0, continue; end
-        wi=exp(-0.5*((f(i)-mu(1))/p.sigmaHz)^2);
-        for aj=1:numel(cj)
-            j=cj(aj);
-            if pos(j)<=0 || abs(f(i)-f(j))<=p.excludeHz, continue; end
-            wj=exp(-0.5*((f(j)-mu(2))/p.sigmaHz)^2);
-            vm=((f(i)+f(j))/2-f(1))/df+1; k0=floor(vm);
-            if k0<1 || k0>=F, continue; end
-            frac=vm-k0;
-            meanMid=(1-frac)*bar(k0)+frac*bar(k0+1);
-            stdMid=(1-frac)*sd(k0)+frac*sd(k0+1);
-            c=wi*wj*pos(i)*pos(j)*stdMid^2/(stdMid+abs(meanMid)+floorSd);
-            local(i)=local(i)+c; local(j)=local(j)+c;
-        end
-    end
-    raw(:,q)=local;
-end
-unit=zeros(size(raw));
-for q=1:Q
-    peak=max(raw(:,q)); if peak>0, unit(:,q)=raw(:,q)/peak; end
-end
-Sf=interp1(tw(centers),unit.',tw,'linear',0).';
-Etime=interp1(tw(centers),activity,tw,'linear',0).';
-Etime=Etime/(max(activity)+eps);
-halfBins=max(1,round(p.freqAvgHz/(2*df)));
-h=hann(2*halfBins+1); h=h/sum(h);
-Wfreq=conv2(h,1,W,'same');
-WfStd=sqrt(max(conv2(h,1,W.^2,'same')-Wfreq.^2,0));
-Pf=max(Wfreq,0);
-selected=false(F,1);
-for r=1:2, selected=selected|(f>=p.bands(r,1)&f<=p.bands(r,2)); end
-activityF=sum(Pf(selected,:),1)*df;
-smooth=movmean(activityF,max(3,round(0.002/dt)));
-minDist=max(p.minPeakDistanceSec,0.6*p.Lsec);
-if max(smooth)>0
-    [~,peakIdx]=findpeaks(smooth,'MinPeakDistance',max(1,round(minDist/dt)), ...
-        'MinPeakProminence',0.10*max(smooth));
-else
-    peakIdx=[];
-end
-peakIdx=peakIdx(:)'; rawTime=zeros(size(W)); pairCount=0;
-floorMid=0.02*max(WfStd(:))+eps;
-for a=1:numel(peakIdx)-1
-    i=peakIdx(a);
-    for b=a+1:numel(peakIdx)
-        j=peakIdx(b); delay=tw(j)-tw(i);
-        if delay<minDist || delay>p.maxPairDelaySec, continue; end
-        vm=(i+j)/2; i0=floor(vm);
-        if i0<1 || i0>=T, continue; end
-        frac=vm-i0;
-        midMean=(1-frac)*Wfreq(:,i0)+frac*Wfreq(:,i0+1);
-        midStd=(1-frac)*WfStd(:,i0)+frac*WfStd(:,i0+1);
-        c=Pf(:,i).*Pf(:,j).*midStd.^2./(midStd+abs(midMean)+floorMid);
-        c(~selected)=0;
-        rawTime(:,i)=rawTime(:,i)+c; rawTime(:,j)=rawTime(:,j)+c;
-        pairCount=pairCount+1;
-    end
-end
-lag=0:round(p.Lsec/dt); kernel=exp(-lag*dt/(p.Lsec/3));
-spread=filter(kernel,1,rawTime,[],2);
-St=zeros(size(spread));
-for r=1:2
-    ii=f>=p.bands(r,1)&f<=p.bands(r,2);
-    bandMax=max(spread(ii,:),[],'all');
-    if bandMax>0, St(ii,:)=spread(ii,:)/(bandMax+eps); end
-end
 end
 
 function metrics=sim_metrics(mask,W,Wa,Wt,Wi)

@@ -1,8 +1,10 @@
-function run_xjtu_batch
+function run_xjtu_batch(numBands)
 % Bearing1_1: two independently recorded snapshots in each life stage.
+if nargin<1, numBands=2; end
 indices=[1 2 69 82 109 123];
 stages={'early','early','middle','middle','late','late'};
-outdir=fullfile('results','xjtu');
+outdir=fullfile('results','absolute-support-multiband','xjtu', ...
+    sprintf('R%d',numBands));
 if ~exist(outdir,'dir'), mkdir(outdir); end
 fid=fopen(fullfile(outdir,'life_summary.csv'),'w');
 assert(fid>0);
@@ -15,7 +17,7 @@ for k=1:numel(indices)
     file=fullfile('input','xjtu-sy','35Hz12kN','Bearing1_1', ...
         sprintf('%d.csv',index));
     for startIndex=[4097 16385]
-        r=main_Paper1('xjtu',file,startIndex);
+        r=main_Paper1('xjtu',file,startIndex,numBands);
         fprintf(fid,'%d,%s,%d,%.6f,%.6f,%.6f,%.6f,%.6f,%.8f,%d,%.6f\n', ...
             index,stages{k},startIndex,r.bpfo_hz,r.raw_bpfo_peak_hz, ...
             r.fused_bpfo_peak_hz,r.raw_bpfo_contrast, ...
