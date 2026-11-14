@@ -18,19 +18,19 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: multiband-cwru-R4
-          run-id: 43605759668
+          run-id: 43607357936
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: collected/cwru
       - uses: actions/download-artifact@v4
         with:
           name: multiband-paderborn-R2
-          run-id: 43605759668
+          run-id: 43607357936
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: collected/paderborn
       - uses: actions/download-artifact@v4
         with:
           name: multiband-xjtu-R3
-          run-id: 43605759668
+          run-id: 43607357936
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: collected/xjtu
       - name: Publish three verified eight-panel pairs
