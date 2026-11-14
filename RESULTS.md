@@ -164,3 +164,11 @@ KA04 六段在目标窗内接近名义 BPFO，但健康 K001 的单段目标窗�
 代表图：[合成信号](figures/synthetic.png)、[CWRU 130](figures/cwru-130.png)、[Paderborn KA04](figures/paderborn-ka04.png)、[XJTU-SY Bearing1_1 后期](figures/xjtu-bearing1_1-late.png)。其余逐段图、MAT、JSON、CSV 与日志在各节链接的 GitHub Actions Artifacts；[最终一致性核查运行](https://github.com/collab-wq/Paper1/actions/runs/43165502779) 对 36 项实验逐字段复现，35 段真实数据的最终指标见 `AUDIT_RESULTS.csv`。
 
 历史记录曾将 CWRU 130 称为最清楚的单一应用；它是 **CWRU 内部**最稳定的三片段案例。跨数据集的最终主案例建议为 Paderborn KA04，因其有官方真实疲劳损伤、同工况健康对照和三条独立记录。早期 Paderborn 记录仅据全文件时间栅格提示 KA04 第 2 条频率解释需谨慎；最终核查补充了所用局部片段约 64 kHz 的证据。这两项历史表述均按 `FINAL_RESULTS.md` 与 `AUDIT_REPORT.md` 的最终结论解释，未改动任何已执行实验数值。
+
+## 7. 实验分支：绝对值支撑与多共振带
+
+本节是 `experiment/absolute-support-multiband` 的独立实验，不覆盖上面 `work` 的历史结果和最终结论。新方法对局部有符号均值取绝对值作频率及时间检测支撑，以原始 WVD 的时间平均幅值自动选 R=2、3、4 个共振带，并遍历全部不同带对。数学式与两类支撑的区别见 `METHOD.md`；固定参数与执行步骤见 `ALGORITHM.md`。
+
+实验仍采用第 3–5 节相同的 5 段 CWRU、18 段 Paderborn、12 段 XJTU-SY，采样率、片段起点、长度、时间窗、步长和阈值不变。每段分别运行 R=2、3、4，共 105 个计划格点；合成信号只做 R=2 回归。不同 R 的输出放在 `results/absolute-support-multiband/` 下的独立目录，逐段状态、边界、频带组合、时间端点和原有故障诊断指标汇总到 `MULTIBAND_RESULTS.csv`。原始数据仍按已有下载脚本与 SHA-256/CRC 校验，未提交仓库。
+
+[独立 MATLAB 自检通过运行](https://github.com/collab-wq/Paper1/actions/runs/43605302178)确认 R=2、3、4 的带对数分别为 1、3、6，合成回归亦成功。真实数据作业必须依赖此自检通过。该分支的真实结果应按 `MULTIBAND_RESULTS.csv` 的逐段状态与实际输出解释，不能预设 R=4 最佳，也不能把未运行或失败的格点写作成功。
