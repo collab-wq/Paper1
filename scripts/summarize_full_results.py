@@ -74,12 +74,13 @@ segments=[]
 for path in sorted((args.root/'input_segments').rglob('metadata.json')):
     meta=json.loads(path.read_text())
     segments.append(dict(meta,metadata_path=str(path)))
-seg_fields=list(segments[0]) if segments else ['dataset','source_file','start_sample','sha256']
+seg_fields=(list(dict.fromkeys(k for row in segments for k in row))
+            if segments else ['dataset','source_file','start_sample','sha256'])
 write('SEGMENT_MANIFEST.csv',segments,seg_fields)
 failures=[]
 for path in sorted((args.root/'failures').glob('*.json')):
     failures.append(json.loads(path.read_text()))
-write('FAILED_SEGMENTS.csv',failures, ...
+write('FAILED_SEGMENTS.csv',failures,
       ['dataset','file','start_sample','status','reason','identifier'])
 expected={'cwru':36,'paderborn':36,'ottawa':366,'xjtu':10048}
 coverage=[]
@@ -88,7 +89,7 @@ for dataset,planned in expected.items():
     failed=sum(r['dataset']==dataset for r in failures)
     coverage.append(dict(dataset=dataset,planned=planned,result_rows=actual,
                          failed_rows=failed,unaccounted=planned-actual-failed))
-write('COVERAGE.csv',coverage, ...
+write('COVERAGE.csv',coverage,
       ['dataset','planned','result_rows','failed_rows','unaccounted'])
 sourceRows=[]
 for path in sorted((args.root/'source').glob('*.csv')):
@@ -104,7 +105,8 @@ for path in sorted((args.root/'source').glob('xjtu-*.json')):
         sourceRows.append(dict(dataset='xjtu',record=obj['bearing']+'/'+number,
             source_url=obj['mirror']+'#'+snap['zip_member'],
             sha256=snap['sha256'],bytes=snap['bytes']))
-write('DATASET_MANIFEST.csv',sourceRows, ...
+sourceRows=list({(r['dataset'],r['record'],r['sha256']):r for r in sourceRows}.values())
+write('DATASET_MANIFEST.csv',sourceRows,
       ['dataset','record','source_url','sha256','bytes'])
 snapshotRows=[]
 groups={}

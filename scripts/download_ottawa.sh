@@ -12,7 +12,13 @@ declare -A ids=(
   [O-C-2]=93cb5c8a-a522-4732-8589-1e7028cba72a
 )
 printf 'record,source_url,sha256,bytes\n' > "$root/source_manifest.csv"
-for name in I-A-2 I-B-2 I-C-2 O-A-2 O-B-2 O-C-2; do
+if [[ -n "${OTTAWA_RECORD:-}" ]]; then
+  [[ -n "${ids[$OTTAWA_RECORD]:-}" ]] || { echo 'Unknown Ottawa record' >&2; exit 1; }
+  records=("$OTTAWA_RECORD")
+else
+  records=(I-A-2 I-B-2 I-C-2 O-A-2 O-B-2 O-C-2)
+fi
+for name in "${records[@]}"; do
   url="$base/${ids[$name]}"
   curl --fail --location --show-error --silent --retry 4 --max-time 600 \
     "$url" --output "$root/$name.mat"

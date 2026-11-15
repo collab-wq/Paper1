@@ -17,6 +17,8 @@ on:
       - 'estimate_encoder_phase.m'
       - 'matlab/run_*_batch.m'
       - 'scripts/check_trial.py'
+      - 'scripts/summarize_full_results.py'
+      - 'scripts/plot_full_trends.py'
   workflow_dispatch:
 permissions:
   contents: write
@@ -163,7 +165,7 @@ jobs:
           case '${{ matrix.dataset }}' in
             cwru) bash scripts/download_cwru.sh ;;
             paderborn) bash scripts/download_paderborn.sh ;;
-            ottawa) bash scripts/download_ottawa.sh ;;
+            ottawa) OTTAWA_RECORD='${{ matrix.record }}' bash scripts/download_ottawa.sh ;;
           esac
       - uses: matlab-actions/setup-matlab@v3
         with:
