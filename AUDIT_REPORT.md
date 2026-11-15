@@ -94,3 +94,7 @@ Paderborn KA04 六段目标窗峰 73.24–77.15 Hz，融合对比度中位数约
 [正式主支最终集成自检运行](https://github.com/collab-wq/Paper1/actions/runs/43704926350)使用 MathWorks `setup-matlab@v3`、Signal Processing Toolbox 与 `run-command@v3` 实际完成 69/69 项确定性检查，状态 `ADAPTIVE_SELF_CHECK_PASS`；[自检日志与 JSON Artifact](https://github.com/collab-wq/Paper1/actions/runs/43704926350/artifacts/14157528951)。测试覆盖绝对值支撑、R=2/3/4 全带对、评分公式与七个强制比较案例、已知及未知故障假设、候选记录与 CSV/JSON 输出。测试矩阵是确定性数值夹具，不作为合成信号性能实验或真实数据证据。工作流中实际执行了 MATLAB 代码；历史真实数据仍只支持先前固定 R 结果。
 
 MathJax 3.2.2 对正式文档的 122 处行内及独立数学表达式逐一解析，0 处语法错误；本地链接检查未发现缺失目标。该检查未在 VS Code + Markdown Preview Enhanced 或 Zettlr 的图形界面中执行。
+
+## 四套真实数据全量验证分支的证据界限
+
+本分支从正式 `main` 创建，核心检测数学与阈值未改。下载、MAT/CSV 结构检查与 MATLAB 确定性自检属于正式实验前置条件；来源预检不代替逐段 WVD 实验。XJTU 目录枚举得到 5024 个实际快照，两个固定窗口的计划数为 10048；汇总程序用预定数量、逐段 `result.json`、失败记录和实际输入片段清单共同核查遗漏，不以缺失记录填充成功结果。Ottawa 的阶次分析必须保留编码器测得的局部转速和轴相位，不能用十秒平均转速代替。

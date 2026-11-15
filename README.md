@@ -27,3 +27,7 @@ main_Paper1('cwru','input/cwru/130.mat',1,'auto','BPFO') % 明确待检假设
 - [AGENTS.md](AGENTS.md)：项目执行与成果管理规范。
 
 `figures/` 保存历史 MATLAB 实验论文图（PNG/PDF）；新的自适应方案仅在未来实际运行后才生成相应实验图。`work` 与 `experiment/absolute-support-multiband` 分支继续保存方法演进记录。
+
+## 全量真实数据实验分支
+
+`experiment/full-real-bearing-validation` 从正式 `main` 派生。新增四套数据的下载、元信息核查、分片批处理和 Ottawa 编码器阶次评价；完整工作流见 `.github/workflows/full-real-bearing-validation.yml`。实验结果在该分支核查，不自动合并回 `main`。历史固定 R 结果与本轮自适应真实数据结果分开解释。

@@ -22,12 +22,23 @@ on:
   workflow_dispatch:
 permissions:
   contents: write
+  actions: write
 jobs:
   self-check:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Cancel superseded preflight runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for old_run in 43719687763 43719856141; do
+            curl -fsS -X POST \
+              -H "Authorization: Bearer $GH_TOKEN" \
+              -H 'Accept: application/vnd.github+json' \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs/$old_run/cancel" || true
+          done
       - uses: matlab-actions/setup-matlab@v3
         with:
           products: Signal_Processing_Toolbox

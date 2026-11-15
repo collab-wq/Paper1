@@ -202,3 +202,9 @@ R=3/4 增加了实际带对和三点候选，但没有形成跨数据集一致�
 ## 8. 正式自适应方法的实验状态
 
 第 2–6 节是原 `work` 方法的历史实验；第 7 节是绝对值支撑下固定 $R=2,3,4$ 的 105 个计划格点（104 个成功、1 个明确失败）。这些数值不能表述为自适应 $R$ 已经在真实轴承数据上运行。本次集成只执行确定性数学与接口自检，没有新增真实数据或合成信号性能结果。自适应真实数据验证安排在手动工作流中，运行之后再记录其逐段结果。原算法逐段核查表见 `archive/previous-algorithm/AUDIT_RESULTS.csv`。
+
+## 9. 四套真实数据全量验证分支
+
+本节对应 `experiment/full-real-bearing-validation`，不覆盖第 2–8 节历史结果。计划 CWRU 官方 12 kHz DE 的 12 份文件、36 段；Paderborn 六个真实疲劳轴承的 18 份记录、36 段；Ottawa 六份 200 kHz 双通道变转速文件，按约 0.328 s 的重叠窗口覆盖 10 s；XJTU-SY 六个轴承共 5024 个编号连续的 CSV，每份两个 4096 点窗口，共 10048 段。所有正式窗口都使用未知故障假设模式，真值类别只用于事后核对。
+
+来源预检 GitHub Actions 运行 `43718257308` 成功：CWRU 12/12、Paderborn 18/18、Ottawa 6/6；XJTU ZIP 中央目录核得 Bearing1_2 161、Bearing1_3 158、Bearing2_1 491、Bearing2_2 161、Bearing3_1 2538、Bearing3_4 1515 份快照，目录内编号没有缺口。CWRU 官方文件哈希列于 `manifests/cwru_sources.csv`；Paderborn 官方 RAR 的 SHA-256 已固定在下载脚本。Ottawa 的公开文件 UUID 指向 Mendeley 存储桶，原始 SHA-256 随运行数据清单保存。上述仅为数据预检，不表示全量 MATLAB 实验已完成。真实结果必须以本分支后续 `REAL_DATA_FULL_RESULTS.csv`、覆盖核查与对应 Actions Artifacts 为准。

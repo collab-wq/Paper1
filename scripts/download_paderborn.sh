@@ -12,7 +12,8 @@ declare -A expected_sha=(
   [KI17]=d80dbdb612cfaeb7ba1ffe6387c52c4d938084b2466e55d96a5528aff4d8b084
 )
 bearing_list=(KA04 KA16 KB24 KI21 KI17 KI04)
-printf 'bearing,source_url,archive_sha256,archive_bytes\n' > "$root/source_manifest.csv"
+printf 'record,source_url,sha256,bytes\n' > "$root/source_manifest.csv"
+printf 'bearing,source_url,archive_sha256,archive_bytes\n' > "$root/archive_manifest.csv"
 for bearing in "${bearing_list[@]}"; do
   archive="$root/${bearing}.rar"
   target="$root/$bearing"
@@ -23,7 +24,7 @@ for bearing in "${bearing_list[@]}"; do
   sha256sum "$archive"
   digest=$(sha256sum "$archive" | cut -d' ' -f1)
   bytes=$(stat -c '%s' "$archive")
-  printf '%s,%s,%s,%s\n' "$bearing" "https://groups.uni-paderborn.de/kat/BearingDataCenter/${bearing}.rar" "$digest" "$bytes" >> "$root/source_manifest.csv"
+  printf '%s,%s,%s,%s\n' "$bearing" "https://groups.uni-paderborn.de/kat/BearingDataCenter/${bearing}.rar" "$digest" "$bytes" >> "$root/archive_manifest.csv"
   if [[ -n "${expected_sha[$bearing]:-}" ]]; then
     printf '%s  %s\n' "${expected_sha[$bearing]}" "$archive" | sha256sum --check
   fi
@@ -37,7 +38,13 @@ for bearing in "${bearing_list[@]}"; do
     rmdir "$target/$bearing"
   fi
   for n in 1 2 3; do
-    test -s "$target/N15_M07_F10_${bearing}_${n}.mat"
+    file="$target/N15_M07_F10_${bearing}_${n}.mat"
+    test -s "$file"
+    matsha=$(sha256sum "$file" | cut -d' ' -f1)
+    matsize=$(stat -c '%s' "$file")
+    printf '%s,%s,%s,%s\n' "${bearing}_${n}" \
+      "https://groups.uni-paderborn.de/kat/BearingDataCenter/${bearing}.rar#${bearing}/N15_M07_F10_${bearing}_${n}.mat" \
+      "$matsha" "$matsize" >> "$root/source_manifest.csv"
   done
   ls -lh "$target"
   rm "$archive"

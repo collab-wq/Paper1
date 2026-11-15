@@ -76,3 +76,11 @@ end
 结果写入 `results/adaptive-band-selection/<dataset>/<segment>/result.json` 与 `candidates.csv`。每个 $(R,h)$ 包括频带、三点计数、目标峰、对比度、物理分辨尺度、误差、$Q_e$、$Q_C$、$J$、有效状态及原因；胜出方案另存八联图和抽样 MAT 网格。诊断活动量仍采用旧版正值 WVD 积分，区别于检测阶段的绝对值局部均值支撑。
 
 当前仅自动运行 `.github/workflows/adaptive-self-check.yml` 的确定性 MATLAB 检查。`.github/workflows/future-real-validation.yml` 只允许手动触发，尚未执行新的自适应真实数据实验。上文提及的旧工作流及 `run_audit` 为历史复现说明，旧工作流已从正式主支清理，历史数值见 `MULTIBAND_RESULTS.csv` 和 `archive/previous-algorithm/AUDIT_RESULTS.csv`。
+
+## 实验分支：四套真实数据全量验证（待最终核查）
+
+`experiment/full-real-bearing-validation` 仅在分支内扩展数据读取、批处理与变转速评价，沿用 `main_Paper1.m` 的原始 WVD、绝对值支撑、双方向三点检测、R=2/3/4 候选、掩膜和饱和型评分。CWRU、Paderborn、XJTU-SY 仍以未知 BPFO/BPFI/BSF 假设分别评分；真实标签只在汇总时由文件名作事后核对。
+
+Ottawa 原始 Channel_1 为 200 kHz 加速度振动，Channel_2 为编码器。对每个 65536 点原始窗口，统一用 `resample(...,2,25)` 抗混叠转换到 16 kHz 后计算 WVD。预检中六份信号的强谱峰均在约 4.8–5.1 kHz，低于 8 kHz 新奈奎斯特频率；原始与实际输入窗口均保存并分别计算 SHA-256。编码器在原始 200 kHz 下检上升沿，以 1024 脉冲/转恢复转数及局部 RPM。WVD 检测仍在时间域完成；只将原始和融合后的 WVD 频带活动曲线按轴转数插值到均匀角度网格，计算目标阶次谱峰与 0.5–12 阶、排除目标窗口后的背景中位数之比。物理阶次分辨尺度为窗口内累计转数的倒数，定位可信度、对比度饱和函数、有效性约束及同分规则与恒速算法同形。平均 RPM 不参与阶次定位。
+
+四类入口为 `run_cwru_full_batch`、`run_paderborn_full_batch`、`run_ottawa_batch` 与 `run_xjtu_lifetime_batch`；它们仅组织原始文件及固定片段，均调用 `main_Paper1`。`full-real-bearing-validation.yml` 先执行 `verify_adaptive_band_selection` 与 `verify_ottawa_order`，再完成来源预检和单段试运行，最后拆分全量任务。每个实际 WVD 输入在 `results/input_segments/` 留存样本、来源、通道、采样率、窗口位置和 SHA-256；自动选择失败时也留存。大型输入和完整实验产物只上传 Actions Artifact。
