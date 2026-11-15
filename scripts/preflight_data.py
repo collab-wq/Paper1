@@ -53,6 +53,9 @@ for path in sorted(root.rglob('*.mat')):
         band=(freq>=1000)&(freq<=50000)
         strongest=np.argsort(spectrum[band])[-10:]
         info['strong_spectral_hz']=freq[band][strongest].tolist()
+        total_power=np.sum(spectrum[(freq>=1000)&(freq<=50000)]**2)
+        info['spectral_power_fraction_1_to_8khz']=float(
+            np.sum(spectrum[(freq>=1000)&(freq<=8000)]**2)/total_power)
     records.append(info)
 report = {'dataset': args.dataset, 'count': len(records), 'records': records}
 with (out / 'data_manifest.json').open('w') as f:

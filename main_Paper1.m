@@ -92,6 +92,32 @@ elseif strcmp(mode,'xjtu')
     [~,stem]=fileparts(dataFile);
     [bearingDir,~]=fileparts(dataFile); [~,bearingName]=fileparts(bearingDir);
     outdir=fullfile('results','xjtu',sprintf('%s-%s-start%d',bearingName,stem,startIndex));
+elseif strcmp(mode,'ottawa')
+    data=load(dataFile);
+    assert(isfield(data,'Channel_1') && isfield(data,'Channel_2'), ...
+        'Ottawa vibration and encoder channels are required');
+    fsOriginal=200000; segmentRawN=65536;
+    vibration=double(data.Channel_1(:));
+    encoderChannel=double(data.Channel_2(:));
+    assert(numel(vibration)==numel(encoderChannel) && ...
+        startIndex>=1 && startIndex+segmentRawN-1<=numel(vibration));
+    encoder=estimate_encoder_phase(encoderChannel,fsOriginal,1024);
+    rawSegment=vibration(startIndex:startIndex+segmentRawN-1);
+    % The 2/25 anti-alias resampling rule is identical for all six records.
+    x=resample(rawSegment,2,25); fs=16000;
+    firstSec=(startIndex-1)/fsOriginal;
+    lastSec=(startIndex+segmentRawN-2)/fsOriginal;
+    localRPM=encoder.rpm(encoder.rpm_times_s>=firstSec & ...
+        encoder.rpm_times_s<=lastSec);
+    assert(~isempty(localRPM),'No encoder speed estimate in window');
+    rpm=median(localRPM);
+    p=struct('bands',[],'Lsec',0.006,'hopSec',0.001, ...
+        'spanHz',180,'sigmaHz',100,'excludeHz',400, ...
+        'freqAvgHz',200,'freqThr',0.10,'timeThr',0.08, ...
+        'activityThr',0.005,'maxPairDelaySec',0.08, ...
+        'minPeakDistanceSec',0.004);
+    [~,stem]=fileparts(dataFile);
+    outdir=fullfile('results','ottawa',sprintf('%s-start%d',stem,startIndex));
 else
     error('Unknown mode %s',mode);
 end
@@ -105,13 +131,53 @@ end
 if ~exist(outdir,'dir'), mkdir(outdir); end
 diary(fullfile(outdir,'experiment.log'));
 cleanup=onCleanup(@() diary('off'));
-if isAuto
+if isAuto && strcmp(mode,'ottawa')
+    save_ottawa_input_segment(dataFile,startIndex,rawSegment,x, ...
+        fsOriginal,fs,encoder,outdir);
+elseif isAuto
     save_input_segment(mode,dataFile,startIndex,x,fs,rpm,outdir);
 end
 [W,f,tw]=wvd(hilbert(x),fs);
 W=real(W); f=f(:); tw=tw(:); F=numel(f); T=numel(tw);
 df=median(diff(f)); dt=median(diff(tw));
 assert(isequal(size(W),[F,T]) && all(diff(f)>0));
+if strcmp(mode,'ottawa')
+    assert(isAuto,'Ottawa requires adaptive order-domain selection');
+    phaseRev=interp1(encoder.edge_times_s,encoder.edge_revolutions, ...
+        tw+firstSec,'linear','extrap');
+    assert(all(isfinite(phaseRev)) && all(diff(phaseRev)>0));
+    choice=struct('smoothHz',100,'lowerHz',1000, ...
+        'upperHz',min(7500,0.9*fs/2),'minDistanceHz',500, ...
+        'halfwidthHz',200,'cropMarginHz',600);
+    [result,maps]=run_adaptive_order_candidates(W,f,tw,p,fs, ...
+        phaseRev,choice,numel(x));
+    result.file=dataFile; result.start_sample=startIndex;
+    result.end_sample=startIndex+segmentRawN-1;
+    result.original_fs_hz=fsOriginal;
+    result.channel='Channel_1'; result.encoder_channel='Channel_2';
+    result.rpm_median=rpm; result.encoder_pulses_per_rev=1024;
+    result.shaft_revolutions=phaseRev(end)-phaseRev(1);
+    result.physical_resolution_order=1/result.shaft_revolutions;
+    result.parameters=p;
+    if strcmp(result.status,'SELECTED')
+        chosen=result.candidates(result.selected_candidate_index);
+        result.selected_bands_hz=chosen.bands_hz;
+        evidence=struct('raw',maps.raw_activity,'fused',maps.fused_activity, ...
+            'time',tw,'phase_revolutions',phaseRev,'unit','order', ...
+            'expected_order',chosen.theoretical_order, ...
+            'fault_name',chosen.hypothesis);
+        plotLimits=[max(0,min(chosen.bands_hz(:,1))-600), ...
+            min(fs/2,max(chosen.bands_hz(:,2))+600)];
+        if exportFigure
+            plot_result(tw,maps.f,maps.W,maps.Sf,maps.St,maps.Mf, ...
+                maps.Mt,maps.M,maps.Wout,outdir,plotLimits,[],evidence);
+        end
+    end
+    write_order_candidate_csv(fullfile(outdir,'candidates.csv'),result);
+    fid=fopen(fullfile(outdir,'result.json'),'w'); assert(fid>0);
+    fprintf(fid,'%s\n',jsonencode(result)); fclose(fid);
+    return;
+end
 if isempty(p.bands)
     if strcmp(mode,'paderborn')
         smoothHz=250; lowerHz=2000; upperHz=min(25000,0.9*fs/2);
@@ -463,15 +529,31 @@ xlabel('Time (s)'); ylabel('Frequency (Hz)');
 
 ax=nexttile(layout);
 if ~isempty(evidence)
-    [freq,pRaw]=periodogram_curve(evidence.raw,evidence.dt);
-    [~,pFused]=periodogram_curve(evidence.fused,evidence.dt);
-    target=freq>=0.8*evidence.expected_hz & freq<=1.2*evidence.expected_hz;
-    back=freq>=50 & freq<=200 & ~target;
+    if isfield(evidence,'unit') && strcmp(evidence.unit,'order')
+        [~,~,~,freq,pRaw]=fault_evidence_order(evidence.raw, ...
+            evidence.time,evidence.phase_revolutions,evidence.expected_order);
+        [~,~,~,~,pFused]=fault_evidence_order(evidence.fused, ...
+            evidence.time,evidence.phase_revolutions,evidence.expected_order);
+        expected=evidence.expected_order;
+        target=freq>=0.8*expected & freq<=1.2*expected;
+        back=freq>=0.5 & freq<=12 & ~target;
+        displayMaxHz=ceil(3.5*expected);
+        axisName='Repetition order (cycles/revolution)';
+        seriesName='order';
+    else
+        [freq,pRaw]=periodogram_curve(evidence.raw,evidence.dt);
+        [~,pFused]=periodogram_curve(evidence.fused,evidence.dt);
+        expected=evidence.expected_hz;
+        target=freq>=0.8*expected & freq<=1.2*expected;
+        back=freq>=50 & freq<=200 & ~target;
+        displayMaxHz=50*ceil(3.5*expected/50);
+        axisName='Repetition frequency (Hz)';
+        seriesName='frequency_hz';
+    end
     rawDb=10*log10(pRaw/(median(pRaw(back))+eps)+eps);
     fusedDb=10*log10(pFused/(median(pFused(back))+eps)+eps);
     h1=plot(freq,rawDb,'Color',[.42 .42 .42],'LineWidth',0.9); hold on;
     h2=plot(freq,fusedDb,'b','LineWidth',1.0);
-    displayMaxHz=50*ceil(3.5*evidence.expected_hz/50);
     if strcmp(evidence.fault_name,'healthy')
         markerName='BPFO (reference)';
     else
@@ -484,7 +566,7 @@ if ~isempty(evidence)
     span=max(high-low,1);
     ylim([low-0.12*span high+0.28*span]);
     for harmonic=1:3
-        markerHz=harmonic*evidence.expected_hz;
+        markerHz=harmonic*expected;
         xline(markerHz,'r--','LineWidth',0.8);
         text(markerHz,high+0.17*span, ...
             sprintf('%d×%s',harmonic,markerName), ...
@@ -494,13 +576,14 @@ if ~isempty(evidence)
     end
     xlim([0 displayMaxHz]); ylabel('Periodic power / median (dB)');
     % Archive the exact plotted series for inspecting harmonic neighborhoods.
-    plotSeries=table(freq(shown).',rawDb(shown).',fusedDb(shown).', ...
-        'VariableNames',{'frequency_hz','original_db','fused_db'});
+    shownFreq=freq(shown); shownRaw=rawDb(shown); shownFused=fusedDb(shown);
+    plotSeries=table(shownFreq(:),shownRaw(:),shownFused(:), ...
+        'VariableNames',{seriesName,'original_db','fused_db'});
     writetable(plotSeries,fullfile(outdir,'periodicity_plot.csv'));
     title('(h) Fault repetition evidence');
     evidenceLegend=legend([h1 h2],{'Original','Fused'}, ...
         'Location','southeast','FontSize',9);
-    xlabel('Repetition frequency (Hz)');
+    xlabel(axisName);
 else
     imagesc(tw,f,asinh(Wauto/scale)); axis xy; ylim(ylimHz);
     clim(ax,[-wvdRange wvdRange]);
@@ -557,4 +640,39 @@ elseif strcmp(mode,'xjtu'), metadata.channel='Horizontal_vibration_signals'; end
 save(fullfile(segmentDir,'wvd_input.mat'),'x','metadata','-v7');
 fid=fopen(fullfile(segmentDir,'metadata.json'),'w'); assert(fid>0);
 fprintf(fid,'%s\n',jsonencode(metadata)); fclose(fid);
+end
+
+function save_ottawa_input_segment(dataFile,startIndex,raw,processed,fsRaw,fs,encoder,outdir)
+relative=erase(outdir,[fullfile('results','adaptive-band-selection') filesep]);
+segmentDir=fullfile('results','input_segments',relative);
+if ~exist(segmentDir,'dir'), mkdir(segmentDir); end
+rawHash=write_signal_hash(fullfile(segmentDir,'original_float64.bin'),raw);
+inputHash=write_signal_hash(fullfile(segmentDir,'wvd_input_float64.bin'),processed);
+firstSec=(startIndex-1)/fsRaw;
+lastSec=(startIndex+numel(raw)-2)/fsRaw;
+selected=encoder.edge_times_s>=firstSec & encoder.edge_times_s<=lastSec;
+edgeTimes=encoder.edge_times_s(selected);
+edgeRevolutions=encoder.edge_revolutions(selected);
+metadata=struct('dataset','ottawa','source_file',dataFile, ...
+    'channel','Channel_1','encoder_channel','Channel_2', ...
+    'start_sample',startIndex,'end_sample',startIndex+numel(raw)-1, ...
+    'original_samples',numel(raw),'samples',numel(processed), ...
+    'original_sampling_hz',fsRaw,'sampling_hz',fs, ...
+    'resample_numerator',2,'resample_denominator',25, ...
+    'original_sha256',rawHash,'sha256',inputHash, ...
+    'encoder_pulses_per_rev',encoder.pulses_per_revolution, ...
+    'encoder_edge_count',numel(edgeTimes), ...
+    'encoder_start_s',firstSec,'encoder_end_s',lastSec);
+save(fullfile(segmentDir,'wvd_input.mat'),'raw','processed', ...
+    'edgeTimes','edgeRevolutions','metadata','-v7');
+fid=fopen(fullfile(segmentDir,'metadata.json'),'w'); assert(fid>0);
+fprintf(fid,'%s\n',jsonencode(metadata)); fclose(fid);
+end
+
+function digest=write_signal_hash(path,signal)
+fid=fopen(path,'w','ieee-le'); assert(fid>0);
+written=fwrite(fid,signal,'double'); fclose(fid);
+assert(written==numel(signal));
+[status,line]=system(sprintf('sha256sum "%s"',path));
+assert(status==0); parts=strsplit(strtrim(line)); digest=parts{1};
 end
