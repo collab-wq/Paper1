@@ -91,4 +91,6 @@ Paderborn KA04 六段目标窗峰 73.24–77.15 Hz，融合对比度中位数约
 
 自检以 GitHub Actions `adaptive-self-check` 日志和 JSON 为实际通过依据；若工作流尚未通过，不应将静态检查等同于 MATLAB 运行通过。真实数据自适应效果仍待后续手动验证。
 
-[正式主支集成自检运行](https://github.com/collab-wq/Paper1/actions/runs/43704661612)使用 MathWorks `setup-matlab@v3`、Signal Processing Toolbox 与 `run-command@v3` 实际完成 63/63 项确定性检查，状态 `ADAPTIVE_SELF_CHECK_PASS`；[自检日志与 JSON Artifact](https://github.com/collab-wq/Paper1/actions/runs/43704661612/artifacts/14157429933)。测试覆盖绝对值支撑、R=2/3/4 全带对、评分公式与七个强制比较案例、已知及未知故障假设、候选记录与 CSV/JSON 输出。测试矩阵是确定性数值夹具，不作为合成信号性能实验或真实数据证据。工作流中实际执行了 MATLAB 代码；历史真实数据仍只支持先前固定 R 结果。
+[正式主支最终集成自检运行](https://github.com/collab-wq/Paper1/actions/runs/43704926350)使用 MathWorks `setup-matlab@v3`、Signal Processing Toolbox 与 `run-command@v3` 实际完成 69/69 项确定性检查，状态 `ADAPTIVE_SELF_CHECK_PASS`；[自检日志与 JSON Artifact](https://github.com/collab-wq/Paper1/actions/runs/43704926350/artifacts/14157528951)。测试覆盖绝对值支撑、R=2/3/4 全带对、评分公式与七个强制比较案例、已知及未知故障假设、候选记录与 CSV/JSON 输出。测试矩阵是确定性数值夹具，不作为合成信号性能实验或真实数据证据。工作流中实际执行了 MATLAB 代码；历史真实数据仍只支持先前固定 R 结果。
+
+MathJax 3.2.2 对正式文档的 122 处行内及独立数学表达式逐一解析，0 处语法错误；本地链接检查未发现缺失目标。该检查未在 VS Code + Markdown Preview Enhanced 或 Zettlr 的图形界面中执行。
