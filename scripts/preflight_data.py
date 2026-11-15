@@ -23,9 +23,9 @@ for path in sorted(root.rglob('*.mat')):
         mat = loadmat(path)
         names = [v['name'] for v in info['variables']]
         assert len([n for n in names if n.endswith('_DE_time')]) == 1
-        assert len([n for n in names if n.endswith('_RPM')]) == 1
+        assert len([n for n in names if n.endswith('RPM')]) == 1
         de = next(n for n in names if n.endswith('_DE_time'))
-        rpm = next(n for n in names if n.endswith('_RPM'))
+        rpm = next(n for n in names if n.endswith('RPM'))
         info['samples'] = mat[de].size
         info['rpm'] = float(mat[rpm].ravel()[0])
         assert info['samples'] >= 10240

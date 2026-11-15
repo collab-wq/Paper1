@@ -5,7 +5,8 @@ mkdir -p "$dest"
 records=(105 130 144 156 106 131 145 158 107 132 146 159)
 printf 'record,source_url,sha256,bytes\n' > "$dest/source_manifest.csv"
 for record in "${records[@]}"; do
-  curl --fail --location --show-error --silent --retry 3 \
+  curl --http1.1 --fail --location --show-error --silent \
+    --retry 8 --retry-all-errors --retry-delay 2 \
     "https://engineering.case.edu/sites/default/files/${record}.mat" \
     --output "$dest/${record}.mat"
   test -s "$dest/${record}.mat"
