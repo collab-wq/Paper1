@@ -1,0 +1,78 @@
+# Paper1 算法流程与复现
+
+## 执行入口
+
+历史 GitHub Actions 工作流 `matlab.yml` 使用 `matlab-actions/setup-matlab@v3` 安装 MATLAB 与 Signal Processing Toolbox，以 `matlab-actions/run-command@v3` 执行测试及实验。`scripts/download_cwru.sh` 从 CWRU 官方站点下载首批四份原始 MAT 文件，逐一校验 SHA-256；`matlab/validate_cwru.m` 检查变量、样本数、DE 通道及 MAT 内记录的转速。原始数据置于 `input/cwru/`，不提交到 Paper1 仓库。日志、JSON 指标及 PNG 图保存为 Actions Artifact。
+
+MATLAB 四类实验入口（均调用同一个 `main_Paper1.m`）：
+
+```matlab
+addpath('matlab')
+run_synthetic_batch
+run_cwru_batch
+run_paderborn_batch
+run_xjtu_batch
+```
+
+历史实验分支的 `main_Paper1(mode,dataFile,startIndex,numBands)` 接受 `numBands=2,3,4`，缺省为 2；四类历史入口也接受可选 `numBands`。合成信号只有两个已知物理共振带，只运行 R=2。历史分支工作流 `absolute-support-multiband.yml` 先运行 `verify_abs_support_multiband` 与合成回归，成功后才分别运行三套真实数据的 R=2、3、4。逐段失败记录于 `validation_status.csv`，不自动降级 R。
+
+`run_audit` 顺序调用上述四个入口，并在 GitHub Actions 中与固定历史 Artifact 对比。数据完整性检查由 `validate_cwru` 等独立程序完成，不包含在批量入口内。
+
+## 离散步骤
+
+1. 读取原始实信号 $x$。合成实验固定随机种子 7；CWRU 读取 DE 原始样本和 MAT 内 RPM。调用 `hilbert` 和 `wvd`，得到 $W[k,n]$、$f_k$、$t_n$。
+2. 在 WVD 频率轴确定 R 个带。合成实验仍固定为 540–770 Hz、865–1100 Hz；真实数据以 $Q(f_k)=\operatorname{mean}_n|W[k,n]|$ 作局部平滑，用原有搜索范围和峰间距找候选峰，按强度取前 R 个，最终按频率升序排列。CWRU 的范围为 1.5–4.5 kHz、平滑 80 Hz、最小峰间距 600 Hz、半宽 175 Hz；其他数据集保留各自既定参数。候选不足即报错。真值类别和理论故障频率不参与选带。
+3. 以时间窗 $L$、步长 `hopSec` 扫描 WVD。每窗计算有符号加权均值及标准差，随后取均值的绝对值支撑，并对全部 R 带计算一阶频率矩与活动量。遍历 $\binom R2$ 个不同带对，分别计算式 (5)，将每个三点分数累积到两端点。记录逐窗有效带对数，逐窗归一化并插值得到 $S_f$。R 带活动量用几何平均归一化为 $E$。
+4. 用频率方向 Hann 核计算原始 WVD 的有符号均值及标准差，再取均值的绝对值支撑。对全部 R 带积分形成活动曲线，经原有 2 ms 移动均值、峰距与相对显著度寻找时间端点。候选时间对的中点线性插值，依式 (8) 计算分数，同时累积到两个端点。
+5. 将端点分数沿正时间方向按指数核扩展一个响应窗，分别在全部 R 带归一化为 $S_t$。计算几何平均 $S=\sqrt{S_f S_t}$，以 $\sqrt{0.10\cdot0.08}$ 阈值及低活动门控产生掩膜。输出 `Wout=W.*M`。
+6. 合成实验在掩膜完成后，单独生成自项及两类交叉项真值，计算自项能量保持率、两类交叉项能量去除率及 NMSE。真实实验使用官方轴承故障频率系数和 MAT 转速计算理论频率，报告 WVD 活动序列在故障频率附近的周期性峰与背景对比。
+
+## 参数与数据边界
+
+| 参数 | 合成实验 | CWRU 真实实验 | 作用 |
+| --- | ---: | ---: | --- |
+| `Lsec` | 0.02727 s | 0.006 s | 局部响应窗及时间分数后向扩展范围 |
+| `hopSec` | 0.005 s | 0.001 s | 频率检测窗的步长 |
+| `spanHz` | 65 Hz | 110 Hz | 频率中心周围的端点候选半宽 |
+| `sigmaHz` | 40 Hz | 80 Hz | 端点高斯权重尺度 |
+| `excludeHz` | 60 Hz | 100 Hz | 频率端点最小分离 |
+| `freqAvgHz` | 40 Hz | 200 Hz | 时间检测用有符号频率平均标称宽度 |
+| `freqThr`, `timeThr` | 0.10, 0.08 | 0.10, 0.08 | 两方向原型阈值；融合阈值为几何平均 |
+| `activityThr` | 0.005 | 0.005 | 归一化活动量门控 |
+| `maxPairDelaySec` | 0.16 s | 0.08 s | 时间候选对最大间隔 |
+
+首批数据工况：`97.mat` 正常 0 HP，`105.mat` 驱动端内圈 0.007 in 故障 0 HP，`118.mat` 滚动体 0.007 in 故障 0 HP，`130.mat` 驱动端外圈 0.007 in、6 点位置 0 HP。后三份在 CWRU 官方 **12k Drive End Bearing Fault Data** 表内。`97.mat` 来自独立 **Normal Baseline Data** 表，应按正常基线的 48 kHz 采样处理；MAT 文件本身没有采样率变量，不能把采样率“读取自 MAT”。
+
+## 三套数据集的最终核查入口
+
+历史工作流 `audit.yml` 固定下载前次已执行运行 `42999351528`、`42999351710`、`42999351656` 的 JSON 结果作为逐项数值参考；再次下载并校验三套原始数据，使用 `matlab/run_audit.m` 重跑固定片段与参数，调用 `scripts/audit_results.py` 输出当时的 `AUDIT_RESULTS.csv`（现已原样归档）。35 段真实数据和一项合成信号均参与比较。脚本将旧 JSON 的每个字段与新 JSON 比对（相对容差 `1e-8`），并把新加的无标签周期峰、目标峰误差和 Paderborn 局部时间栅格另列供核查。核查结果与逐段日志、JSON、代表图保存在 `paper1-audit` Actions Artifact。
+
+真实数据参数分别在 `main_Paper1.m` 对应模式中定义；四类实验的片段、时间窗和自动选带范围详见 `RESULTS.md`。理论故障频率只在完成检测和重构后用于评价；正常记录的目标频率窗口也仅作为事后响应对照。最终核查与物理分辨率解释见 `AUDIT_REPORT.md`，统一实验结论见 `FINAL_RESULTS.md`。
+
+## 正式主支：自适应选带流程
+
+`main_Paper1(mode,dataFile,startIndex)` 对真实数据默认使用自适应模式；第四参数可填 `2`、`3`、`4`，保留固定 R 的历史分析入口。第五参数可明确指定 `BPFO`、`BPFI` 或 `BSF`；缺省 `unknown` 同时评估全部物理假设。合成信号仍仅允许固定 $R=2$，不参加正式自适应决策。新的确定性自检入口为 `addpath('matlab'); verify_adaptive_band_selection`。
+
+```matlab
+% 实际代码分布于 main_Paper1、run_adaptive_candidates 等函数。
+[W,f,tw] = wvd(hilbert(x),fs); % 每段仅一次
+ranked = find_resonance_candidates(W,f,...); % 幅值峰强度降序
+H = bearing_hypotheses(mode,rpm,requestedHypothesis);
+for R = 2:4
+    if numel(ranked) < R
+        % 记录 INSUFFICIENT_BANDS，不影响其他 R
+        continue
+    end
+    bands = sort(ranked(1:R));
+    % 对该 R 调用原双方向检测器；遍历所有 nchoosek(R,2) 个带对。
+    % 原有掩膜、Wout、周期谱及 fault_evidence 均保持定义。
+    for h = H
+        % 使用 fs/N、线性功率对比度和 METHOD.md 式 (12)–(13) 评分。
+    end
+end
+% 有效候选按 J 降序，精确同分时 R 升序；无有效项返回 NO_VALID_R。
+```
+
+结果写入 `results/adaptive-band-selection/<dataset>/<segment>/result.json` 与 `candidates.csv`。每个 $(R,h)$ 包括频带、三点计数、目标峰、对比度、物理分辨尺度、误差、$Q_e$、$Q_C$、$J$、有效状态及原因；胜出方案另存八联图和抽样 MAT 网格。诊断活动量仍采用旧版正值 WVD 积分，区别于检测阶段的绝对值局部均值支撑。
+
+当前仅自动运行 `.github/workflows/adaptive-self-check.yml` 的确定性 MATLAB 检查。`.github/workflows/future-real-validation.yml` 只允许手动触发，尚未执行新的自适应真实数据实验。上文提及的旧工作流及 `run_audit` 为历史复现说明，旧工作流已从正式主支清理，历史数值见 `MULTIBAND_RESULTS.csv` 和 `archive/previous-algorithm/AUDIT_RESULTS.csv`。

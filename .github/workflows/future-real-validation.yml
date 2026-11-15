@@ -1,0 +1,56 @@
+name: Paper1 future real-data validation
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: Dataset to validate
+        required: true
+        type: choice
+        options: [cwru, paderborn, xjtu]
+permissions:
+  contents: read
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Gate real-data execution on deterministic checks
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); verify_adaptive_band_selection"
+  real-data-validation:
+    needs: self-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Paderborn archive reader
+        if: inputs.dataset == 'paderborn'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq unar
+      - name: Download verified original records
+        run: |
+          case '${{ inputs.dataset }}' in
+            cwru) bash scripts/download_cwru.sh ;;
+            paderborn) bash scripts/download_paderborn.sh ;;
+            xjtu) python scripts/download_xjtu.py --fetch ;;
+          esac
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Evaluate adaptive R on fixed historical segments
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); run_adaptive_validation('${{ inputs.dataset }}')"
+      - name: Archive candidate scores, images, arrays, and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: adaptive-${{ inputs.dataset }}
+          path: results/adaptive-band-selection/
+          if-no-files-found: warn

@@ -1,0 +1,6 @@
+input/
+results/
+__pycache__/
+*.asv
+*.m~
+.DS_Store
