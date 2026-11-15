@@ -14,6 +14,12 @@ for record in "${records[@]}"; do
   bytes=$(stat -c '%s' "$dest/${record}.mat")
   printf '%s,%s,%s,%s\n' "$record" "https://engineering.case.edu/sites/default/files/${record}.mat" "$hash" "$bytes" >> "$dest/source_manifest.csv"
 done
+if [[ -f manifests/cwru_sources.csv ]]; then
+  while IFS=, read -r record _url expected _bytes; do
+    [[ "$record" == record ]] && continue
+    printf '%s  %s\n' "$expected" "$dest/$record.mat" | sha256sum --check
+  done < manifests/cwru_sources.csv
+fi
 (
   cd "$dest"
   sha256sum -c <<'CHECKSUMS'

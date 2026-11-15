@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path
 from scipy.io import whosmat, loadmat
+import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument('dataset', choices=['cwru', 'paderborn', 'ottawa'])
@@ -36,10 +37,26 @@ for path in sorted(root.rglob('*.mat')):
         assert len(vib) == len(enc) and len(vib) >= 1900000
         info.update(samples=len(vib), sampling_hz=200000,
                     encoder_min=float(enc.min()), encoder_max=float(enc.max()),
-                    encoder_median=float(__import__('numpy').median(enc)))
+                    encoder_median=float(np.median(enc)))
+        threshold=(float(np.percentile(enc,5))+float(np.percentile(enc,95)))/2
+        edges=np.flatnonzero((enc[:-1]<threshold)&(enc[1:]>=threshold))+1
+        info['encoder_rising_edges']=len(edges)
+        if len(edges)>1024:
+            revolutions=(len(edges)-1)/1024
+            info['mean_rpm_if_1024_ppr']=60*revolutions/((edges[-1]-edges[0])/200000)
+            cut=len(edges)//3
+            info['rpm_first_third_if_1024_ppr']=60*(cut-1)/1024/((edges[cut-1]-edges[0])/200000)
+            info['rpm_last_third_if_1024_ppr']=60*(cut-1)/1024/((edges[-1]-edges[-cut])/200000)
+        clip=vib[:200000]-np.mean(vib[:200000])
+        spectrum=np.abs(np.fft.rfft(clip))
+        freq=np.fft.rfftfreq(len(clip),1/200000)
+        band=(freq>=1000)&(freq<=50000)
+        strongest=np.argsort(spectrum[band])[-10:]
+        info['strong_spectral_hz']=freq[band][strongest].tolist()
     records.append(info)
 report = {'dataset': args.dataset, 'count': len(records), 'records': records}
 with (out / 'data_manifest.json').open('w') as f:
     json.dump(report, f, indent=2)
 print(json.dumps({'dataset': args.dataset, 'count': len(records),
-                  'files': [r['file'] for r in records]}, indent=2))
+                  'records': [{k:v for k,v in r.items() if k not in ('variables','sha256')}
+                              for r in records]}, indent=2))
