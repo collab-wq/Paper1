@@ -102,6 +102,22 @@ check('reconstruction uses unchanged mask product',contains(source,'Wout=W.*M;')
 check('JSON and CSV writers connected',contains(core,"write_adaptive_candidate_csv") && contains(core,"jsonencode(result)"));
 check('all candidate R loop present',contains(source,'for R=2:4'));
 check('failure isolated per R',contains(source,'catch err') && contains(source,'continue;'));
+choice=struct('smoothHz',30,'lowerHz',100,'upperHz',1200, ...
+    'minDistanceHz',200,'halfwidthHz',40,'cropMarginHz',100);
+p=parameters([]); p.freqThr=0.10; p.timeThr=0.08; p.activityThr=0.005;
+[trial,trialMaps]=run_adaptive_candidates(W,f,tw,p,'cwru',2000,1800,200,choice,'unknown');
+check('all nine R-h records retained',numel(trial.candidates)==9);
+check('all three R values evaluated',isequal(unique([trial.candidates.R]),[2 3 4]));
+check('all three fault hypotheses evaluated',numel(unique({trial.candidates.hypothesis}))==3);
+check('valid selected reconstruction or explicit no-valid status', ...
+    (strcmp(trial.status,'SELECTED') && isequal(size(trialMaps.Wout),size(trialMaps.M))) || ...
+    (strcmp(trial.status,'NO_VALID_R') && isempty(trialMaps)));
+csvFile=fullfile(outdir,'candidate-schema.csv');
+write_adaptive_candidate_csv(csvFile,trial);
+csvText=fileread(csvFile);
+check('candidate CSV contains score and status',contains(csvText,'location_confidence') && ...
+    contains(csvText,'contrast_utility') && contains(csvText,'valid'));
+check('candidate JSON encodes all evaluations',contains(jsonencode(trial),'candidates'));
 
 report=struct('status','PASS','count',numel(names), ...
     'tests',struct('name',names,'status',states,'detail',details));
