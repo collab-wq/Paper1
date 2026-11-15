@@ -5,6 +5,10 @@ on:
     paths:
       - '.github/workflows/adaptive-self-check.yml'
       - 'main_Paper1.m'
+      - 'band_union.m'
+      - 'dominant_periodicity.m'
+      - 'periodogram_curve.m'
+      - 'write_adaptive_candidate_csv.m'
       - 'dual_detector_abs_multiband.m'
       - 'select_resonance_bands.m'
       - 'find_resonance_candidates.m'
@@ -14,6 +18,7 @@ on:
       - 'run_adaptive_candidates.m'
       - 'fault_evidence.m'
       - 'matlab/verify_adaptive_band_selection.m'
+      - 'matlab/run_adaptive_validation.m'
   workflow_dispatch:
 permissions:
   contents: read

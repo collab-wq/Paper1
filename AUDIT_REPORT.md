@@ -90,3 +90,5 @@ Paderborn KA04 六段目标窗峰 73.24–77.15 Hz，融合对比度中位数约
 本节区分四类证据：历史 `work` 及固定 R 实验的数值结果仍为已运行 MATLAB 证据；新自适应方法的公式与调用关系可静态核查；`verify_adaptive_band_selection` 是不读取真实数据的确定性 MATLAB 单元检查；自适应真实轴承实验本次未运行。旧 `AUDIT_RESULTS.csv` 原样移至 `archive/previous-algorithm/`，`MULTIBAND_RESULTS.csv` 数值保留。`main_Paper1` 一次计算原始 WVD，`run_adaptive_candidates` 复用它评分各 R 与假设；选择阶段不接收文件名或真实标签，诊断的正值活动量与 `fault_evidence` 背景定义未改。
 
 自检以 GitHub Actions `adaptive-self-check` 日志和 JSON 为实际通过依据；若工作流尚未通过，不应将静态检查等同于 MATLAB 运行通过。真实数据自适应效果仍待后续手动验证。
+
+[正式主支集成自检运行](https://github.com/collab-wq/Paper1/actions/runs/43704661612)使用 MathWorks `setup-matlab@v3`、Signal Processing Toolbox 与 `run-command@v3` 实际完成 63/63 项确定性检查，状态 `ADAPTIVE_SELF_CHECK_PASS`；[自检日志与 JSON Artifact](https://github.com/collab-wq/Paper1/actions/runs/43704661612/artifacts/14157429933)。测试覆盖绝对值支撑、R=2/3/4 全带对、评分公式与七个强制比较案例、已知及未知故障假设、候选记录与 CSV/JSON 输出。测试矩阵是确定性数值夹具，不作为合成信号性能实验或真实数据证据。工作流中实际执行了 MATLAB 代码；历史真实数据仍只支持先前固定 R 结果。
