@@ -1,0 +1,39 @@
+name: Paper1 adaptive algorithm self-check
+on:
+  push:
+    branches: [integrate/adaptive-band-selection-main, main]
+    paths:
+      - '.github/workflows/adaptive-self-check.yml'
+      - 'main_Paper1.m'
+      - 'dual_detector_abs_multiband.m'
+      - 'select_resonance_bands.m'
+      - 'find_resonance_candidates.m'
+      - 'bearing_hypotheses.m'
+      - 'evaluate_band_count.m'
+      - 'select_optimal_band_count.m'
+      - 'run_adaptive_candidates.m'
+      - 'fault_evidence.m'
+      - 'matlab/verify_adaptive_band_selection.m'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run deterministic MATLAB checks
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); verify_adaptive_band_selection"
+      - name: Archive self-check log and JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: adaptive-self-check
+          path: results/adaptive-self-check/
+          if-no-files-found: warn

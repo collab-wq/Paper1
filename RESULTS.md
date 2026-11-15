@@ -1,6 +1,6 @@
 # Paper1 四类实验执行记录
 
-> 本文件整合合成、CWRU、Paderborn、XJTU-SY 的已执行实验详情。最终核查后的统一结论以 `FINAL_RESULTS.md`、`AUDIT_REPORT.md`、`AUDIT_RESULTS.csv` 为准；历史运行记录和原始数值保留在下文。
+> 本文件整合合成、CWRU、Paderborn、XJTU-SY 的已执行实验详情。最终核查后的统一结论以 `FINAL_RESULTS.md`、`AUDIT_REPORT.md`、`archive/previous-algorithm/AUDIT_RESULTS.csv` 为准；历史运行记录和原始数值保留在下文。
 
 ## 1. 实验总体说明
 
@@ -161,7 +161,7 @@ KA04 六段在目标窗内接近名义 BPFO，但健康 K001 的单段目标窗�
 
 ## 6. 结果文件、运行记录与版本说明
 
-代表图：[合成信号](figures/synthetic.png)、[CWRU 130](figures/cwru-130.png)、[Paderborn KA04](figures/paderborn-ka04.png)、[XJTU-SY Bearing1_1 后期](figures/xjtu-bearing1_1-late.png)。其余逐段图、MAT、JSON、CSV 与日志在各节链接的 GitHub Actions Artifacts；[最终一致性核查运行](https://github.com/collab-wq/Paper1/actions/runs/43165502779) 对 36 项实验逐字段复现，35 段真实数据的最终指标见 `AUDIT_RESULTS.csv`。
+代表图：[合成信号](figures/synthetic.png)、[CWRU 130](figures/cwru-130.png)、[Paderborn KA04](figures/paderborn-ka04.png)、[XJTU-SY Bearing1_1 后期](figures/xjtu-bearing1_1-late.png)。其余逐段图、MAT、JSON、CSV 与日志在各节链接的 GitHub Actions Artifacts；[最终一致性核查运行](https://github.com/collab-wq/Paper1/actions/runs/43165502779) 对 36 项实验逐字段复现，35 段真实数据的最终指标见 `archive/previous-algorithm/AUDIT_RESULTS.csv`。
 
 历史记录曾将 CWRU 130 称为最清楚的单一应用；它是 **CWRU 内部**最稳定的三片段案例。跨数据集的最终主案例建议为 Paderborn KA04，因其有官方真实疲劳损伤、同工况健康对照和三条独立记录。早期 Paderborn 记录仅据全文件时间栅格提示 KA04 第 2 条频率解释需谨慎；最终核查补充了所用局部片段约 64 kHz 的证据。这两项历史表述均按 `FINAL_RESULTS.md` 与 `AUDIT_REPORT.md` 的最终结论解释，未改动任何已执行实验数值。
 
@@ -198,3 +198,7 @@ R=3/4 增加了实际带对和三点候选，但没有形成跨数据集一致�
 [数值一致性与代表图发布运行](https://github.com/collab-wq/Paper1/actions/runs/43619390690)从九个重绘 Artifact 重新聚合 105 行，并与已提交 `MULTIBAND_RESULTS.csv` 逐字节一致。放大检查三张代表图后，修正后的纵轴单位与刻度不再重叠。
 
 分支代表八联图（PNG/PDF）：[CWRU 130，R=4](figures/absolute-support-multiband/cwru-130-R4.png)、[Paderborn KA04，R=2](figures/absolute-support-multiband/paderborn-ka04-R2.png)、[XJTU-SY 后期，R=3](figures/absolute-support-multiband/xjtu-bearing1_1-late-R3.png)。选取它们只为展示不同 R 的实际输出；完整 104 个有效图保存在上述 Actions Artifacts。
+
+## 8. 正式自适应方法的实验状态
+
+第 2–6 节是原 `work` 方法的历史实验；第 7 节是绝对值支撑下固定 $R=2,3,4$ 的 105 个计划格点（104 个成功、1 个明确失败）。这些数值不能表述为自适应 $R$ 已经在真实轴承数据上运行。本次集成只执行确定性数学与接口自检，没有新增真实数据或合成信号性能结果。自适应真实数据验证安排在手动工作流中，运行之后再记录其逐段结果。原算法逐段核查表见 `archive/previous-algorithm/AUDIT_RESULTS.csv`。

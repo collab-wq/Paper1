@@ -2,7 +2,7 @@
 
 ## 执行入口
 
-GitHub Actions 工作流 `.github/workflows/matlab.yml` 使用 `matlab-actions/setup-matlab@v3` 安装 MATLAB 与 Signal Processing Toolbox，以 `matlab-actions/run-command@v3` 执行测试及实验。`scripts/download_cwru.sh` 从 CWRU 官方站点下载首批四份原始 MAT 文件，逐一校验 SHA-256；`matlab/validate_cwru.m` 检查变量、样本数、DE 通道及 MAT 内记录的转速。原始数据置于 `input/cwru/`，不提交到 Paper1 仓库。日志、JSON 指标及 PNG 图保存为 Actions Artifact。
+历史 GitHub Actions 工作流 `matlab.yml` 使用 `matlab-actions/setup-matlab@v3` 安装 MATLAB 与 Signal Processing Toolbox，以 `matlab-actions/run-command@v3` 执行测试及实验。`scripts/download_cwru.sh` 从 CWRU 官方站点下载首批四份原始 MAT 文件，逐一校验 SHA-256；`matlab/validate_cwru.m` 检查变量、样本数、DE 通道及 MAT 内记录的转速。原始数据置于 `input/cwru/`，不提交到 Paper1 仓库。日志、JSON 指标及 PNG 图保存为 Actions Artifact。
 
 MATLAB 四类实验入口（均调用同一个 `main_Paper1.m`）：
 
@@ -14,7 +14,7 @@ run_paderborn_batch
 run_xjtu_batch
 ```
 
-本实验分支的 `main_Paper1(mode,dataFile,startIndex,numBands)` 接受 `numBands=2,3,4`，缺省为 2；四类入口也接受可选 `numBands`。合成信号只有两个已知物理共振带，只运行 R=2。分支工作流 `.github/workflows/absolute-support-multiband.yml` 先运行 `verify_abs_support_multiband` 与合成回归，成功后才分别运行三套真实数据的 R=2、3、4。逐段失败记录于 `validation_status.csv`，不自动降级 R。
+历史实验分支的 `main_Paper1(mode,dataFile,startIndex,numBands)` 接受 `numBands=2,3,4`，缺省为 2；四类历史入口也接受可选 `numBands`。合成信号只有两个已知物理共振带，只运行 R=2。历史分支工作流 `absolute-support-multiband.yml` 先运行 `verify_abs_support_multiband` 与合成回归，成功后才分别运行三套真实数据的 R=2、3、4。逐段失败记录于 `validation_status.csv`，不自动降级 R。
 
 `run_audit` 顺序调用上述四个入口，并在 GitHub Actions 中与固定历史 Artifact 对比。数据完整性检查由 `validate_cwru` 等独立程序完成，不包含在批量入口内。
 
@@ -45,6 +45,34 @@ run_xjtu_batch
 
 ## 三套数据集的最终核查入口
 
-`.github/workflows/audit.yml` 固定下载前次已执行运行 `42999351528`、`42999351710`、`42999351656` 的 JSON 结果作为逐项数值参考；再次下载并校验三套原始数据，使用 `matlab/run_audit.m` 重跑固定片段与参数，调用 `scripts/audit_results.py` 输出 `AUDIT_RESULTS.csv`。35 段真实数据和一项合成信号均参与比较。脚本将旧 JSON 的每个字段与新 JSON 比对（相对容差 `1e-8`），并把新加的无标签周期峰、目标峰误差和 Paderborn 局部时间栅格另列供核查。核查结果与逐段日志、JSON、代表图保存在 `paper1-audit` Actions Artifact。
+历史工作流 `audit.yml` 固定下载前次已执行运行 `42999351528`、`42999351710`、`42999351656` 的 JSON 结果作为逐项数值参考；再次下载并校验三套原始数据，使用 `matlab/run_audit.m` 重跑固定片段与参数，调用 `scripts/audit_results.py` 输出当时的 `AUDIT_RESULTS.csv`（现已原样归档）。35 段真实数据和一项合成信号均参与比较。脚本将旧 JSON 的每个字段与新 JSON 比对（相对容差 `1e-8`），并把新加的无标签周期峰、目标峰误差和 Paderborn 局部时间栅格另列供核查。核查结果与逐段日志、JSON、代表图保存在 `paper1-audit` Actions Artifact。
 
 真实数据参数分别在 `main_Paper1.m` 对应模式中定义；四类实验的片段、时间窗和自动选带范围详见 `RESULTS.md`。理论故障频率只在完成检测和重构后用于评价；正常记录的目标频率窗口也仅作为事后响应对照。最终核查与物理分辨率解释见 `AUDIT_REPORT.md`，统一实验结论见 `FINAL_RESULTS.md`。
+
+## 正式主支：自适应选带流程
+
+`main_Paper1(mode,dataFile,startIndex)` 对真实数据默认使用自适应模式；第四参数可填 `2`、`3`、`4`，保留固定 R 的历史分析入口。第五参数可明确指定 `BPFO`、`BPFI` 或 `BSF`；缺省 `unknown` 同时评估全部物理假设。合成信号仍仅允许固定 $R=2$，不参加正式自适应决策。新的确定性自检入口为 `addpath('matlab'); verify_adaptive_band_selection`。
+
+```matlab
+% 实际代码分布于 main_Paper1、run_adaptive_candidates 等函数。
+[W,f,tw] = wvd(hilbert(x),fs); % 每段仅一次
+ranked = find_resonance_candidates(W,f,...); % 幅值峰强度降序
+H = bearing_hypotheses(mode,rpm,requestedHypothesis);
+for R = 2:4
+    if numel(ranked) < R
+        % 记录 INSUFFICIENT_BANDS，不影响其他 R
+        continue
+    end
+    bands = sort(ranked(1:R));
+    % 对该 R 调用原双方向检测器；遍历所有 nchoosek(R,2) 个带对。
+    % 原有掩膜、Wout、周期谱及 fault_evidence 均保持定义。
+    for h = H
+        % 使用 fs/N、线性功率对比度和 METHOD.md 式 (12)–(13) 评分。
+    end
+end
+% 有效候选按 J 降序，精确同分时 R 升序；无有效项返回 NO_VALID_R。
+```
+
+结果写入 `results/adaptive-band-selection/<dataset>/<segment>/result.json` 与 `candidates.csv`。每个 $(R,h)$ 包括频带、三点计数、目标峰、对比度、物理分辨尺度、误差、$Q_e$、$Q_C$、$J$、有效状态及原因；胜出方案另存八联图和抽样 MAT 网格。诊断活动量仍采用旧版正值 WVD 积分，区别于检测阶段的绝对值局部均值支撑。
+
+当前仅自动运行 `.github/workflows/adaptive-self-check.yml` 的确定性 MATLAB 检查。`.github/workflows/future-real-validation.yml` 只允许手动触发，尚未执行新的自适应真实数据实验。上文提及的旧工作流及 `run_audit` 为历史复现说明，旧工作流已从正式主支清理，历史数值见 `MULTIBAND_RESULTS.csv` 和 `archive/previous-algorithm/AUDIT_RESULTS.csv`。

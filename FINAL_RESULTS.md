@@ -26,4 +26,10 @@ XJTU-SY 的早/中/后仅表示记录顺序，CSV 不含当次实测转速及损
 
 **主病例建议 Paderborn KA04**：官方数据包含真实加速寿命外圈损伤、同工况健康轴承 K001 和每轴承三条独立记录。应同时报告健康响应重叠、64 ms 物理分辨率、全文件时间栅格异常及局部核查。**CWRU 130** 适合展示同一外圈故障记录的三片段重复性。**XJTU-SY Bearing1_1** 适合展示故障发展期间周期结构增强，但不把早期快照宣称为已证实健康状态。KI04 和 CWRU 118 的不稳定结果应保留在完整结果中。
 
-最终保留 `METHOD.md`、`ALGORITHM.md`、`main_Paper1.m` 及必要数据下载/验证程序；本报告、`AUDIT_REPORT.md`、`AUDIT_RESULTS.csv`；`figures/` 中合成和三个代表性真实病例的论文用图。每段完整 JSON、实验日志、时频图与可用 MAT 网格由 GitHub Actions Artifacts 保存，不提交大型原始数据。
+最终保留 `METHOD.md`、`ALGORITHM.md`、`main_Paper1.m` 及必要数据下载/验证程序；本报告、`AUDIT_REPORT.md`、`archive/previous-algorithm/AUDIT_RESULTS.csv`；`figures/` 中合成和三个代表性真实病例的论文用图。每段完整 JSON、实验日志、时频图与可用 MAT 网格由 GitHub Actions Artifacts 保存，不提交大型原始数据。
+
+## 正式主支方法决定与证据边界
+
+正式方法采用原始 WVD、绝对值局部均值支撑、频率及时间方向三点检测、几何平均融合，并在嵌套 $R=2,3,4$ 候选中用 `METHOD.md` 式 (11)–(13) 的饱和评分选择方案。对比度达到线性功率比 10 后不再增加效用，超过一个物理分辨尺度或对比度不大于 1 的候选无效。无有效项返回 `NO_VALID_R`。故障类别未知时对 BPFO、BPFI、BSF 排名，排名不构成健康/故障分类。
+
+现有 `MULTIBAND_RESULTS.csv` 支持固定 R 下三套真实数据的比较，并显示不存在普遍最优的固定 R；它不能直接证明自适应选择的真实数据表现。本次无新的真实数据运行。原方法的数值核查表归档于 `archive/previous-algorithm/AUDIT_RESULTS.csv`，原有历史结论依其方法版本解释。

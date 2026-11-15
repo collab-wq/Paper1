@@ -1,16 +1,22 @@
-function result = main_Paper1(mode, dataFile, startIndex, numBands)
+function result = main_Paper1(mode, dataFile, startIndex, numBands, requestedHypothesis)
 % Paper1: direct-WVD dual-direction endpoint/midpoint/endpoint detector.
 % Usage: main_Paper1('synthetic'), main_Paper1('cwru',file), or
 %        main_Paper1('paderborn',file,startIndex)
 if nargin<1, mode='synthetic'; end
 if nargin<2, dataFile='input/cwru/130.mat'; end
 if nargin<3, startIndex=1; end
-if nargin<4, numBands=2; end
-assert(isscalar(numBands) && ismember(numBands,[2 3 4]), ...
-    'numBands must be 2, 3, or 4');
 mode=char(mode);
+if nargin<4 || isempty(numBands)
+    if strcmp(mode,'synthetic'), numBands=2;
+    else, numBands='auto'; end
+end
+if nargin<5, requestedHypothesis='unknown'; end
+isAuto=ischar(numBands) || isstring(numBands);
+assert((isAuto && strcmpi(char(numBands),'auto')) || ...
+    (~isAuto && isscalar(numBands) && ismember(numBands,[2 3 4])), ...
+    'numBands must be auto, 2, 3, or 4');
 if strcmp(mode,'synthetic')
-    assert(numBands==2,'Synthetic truth has exactly two physical resonance bands');
+    assert(~isAuto && numBands==2,'Synthetic truth has exactly two physical resonance bands');
     rng(7); fs=4000; t=(0:round(0.27*fs)-1)'/fs;
     impactTimes=0.02:0.05:0.22; fc=[650 980]; amp=[1 0.7]; beta=110;
     atoms=zeros(numel(t),numel(impactTimes)*2); a=0;
@@ -83,8 +89,13 @@ elseif strcmp(mode,'xjtu')
 else
     error('Unknown mode %s',mode);
 end
-outdir=fullfile('results','absolute-support-multiband', ...
-    outdir(numel('results')+2:end),sprintf('R%d',numBands));
+if isAuto
+    outdir=fullfile('results','adaptive-band-selection', ...
+        outdir(numel('results')+2:end));
+else
+    outdir=fullfile('results','absolute-support-multiband', ...
+        outdir(numel('results')+2:end),sprintf('R%d',numBands));
+end
 if ~exist(outdir,'dir'), mkdir(outdir); end
 diary(fullfile(outdir,'experiment.log'));
 cleanup=onCleanup(@() diary('off'));
@@ -102,6 +113,57 @@ if isempty(p.bands)
     else
         smoothHz=80; lowerHz=1500; upperHz=min(4500,0.9*fs/2);
         minBandDistanceHz=600; bandHalfwidthHz=175;
+    end
+    if isAuto
+        choice=struct('smoothHz',smoothHz,'lowerHz',lowerHz, ...
+            'upperHz',upperHz,'minDistanceHz',minBandDistanceHz, ...
+            'halfwidthHz',bandHalfwidthHz,'cropMarginHz',600);
+        [result,maps]=run_adaptive_candidates(W,f,tw,p,mode,fs,rpm, ...
+            numel(x),choice,requestedHypothesis);
+        result.file=dataFile;
+        result.start_sample=startIndex;
+        result.end_sample=startIndex+numel(x)-1;
+        result.rpm=rpm;
+        result.parameters=p;
+        if strcmp(mode,'cwru'), result.channel=de;
+        else
+            result.channel=channel;
+            result.force_N=forceN;
+            result.torque_Nm=torqueNm;
+            if strcmp(mode,'paderborn'), result.time_raster=raster; end
+        end
+        if strcmp(result.status,'SELECTED')
+            chosen=result.candidates(result.selected_candidate_index);
+            result.selected_bands_hz=chosen.bands_hz;
+            result.selected_unlabelled_peak_hz=chosen.unlabelled_fused_peak_hz;
+            evidence=struct('raw',maps.raw_activity, ...
+                'fused',maps.fused_activity,'dt',dt, ...
+                'expected_hz',chosen.theoretical_hz, ...
+                'fault_name',chosen.hypothesis);
+            plotLimits=[max(0,min(chosen.bands_hz(:,1))-600), ...
+                min(fs/2,max(chosen.bands_hz(:,2))+600)];
+            plot_result(tw,maps.f,maps.W,maps.Sf,maps.St,maps.Mf, ...
+                maps.Mt,maps.M,maps.Wout,outdir,plotLimits,[],evidence);
+            frequency_stride=4; time_stride=4;
+            fi=1:frequency_stride:numel(maps.f);
+            ti=1:time_stride:numel(tw);
+            archive=struct('signal',x,'fs_hz',fs, ...
+                'frequency_hz',maps.f(fi),'time_s',tw(ti), ...
+                'original_wvd',single(maps.W(fi,ti)), ...
+                'frequency_detection',single(maps.Sf(fi,ti)), ...
+                'time_detection',single(maps.St(fi,ti)), ...
+                'geometric_fusion',single(maps.fusion(fi,ti)), ...
+                'reconstructed_wvd',single(maps.Wout(fi,ti)), ...
+                'frequency_stride',frequency_stride, ...
+                'time_stride',time_stride, ...
+                'raw_activity',maps.raw_activity, ...
+                'fused_activity',maps.fused_activity);
+            save(fullfile(outdir,'experiment_arrays.mat'),'archive','-v7.3');
+        end
+        write_adaptive_candidate_csv(fullfile(outdir,'candidates.csv'),result);
+        fid=fopen(fullfile(outdir,'result.json'),'w');
+        assert(fid>0); fprintf(fid,'%s\n',jsonencode(result)); fclose(fid);
+        return;
     end
     p.bands=select_resonance_bands(W,f,numBands,smoothHz, ...
         lowerHz,upperHz,minBandDistanceHz,bandHalfwidthHz);
@@ -340,24 +402,6 @@ metrics=struct('self_retained',sq(Wa.*mask)/(sq(Wa)+eps), ...
     'nmse',sq(W.*mask-Wa)/(sq(Wa)+eps));
 end
 
-function [peak,contrast]=fault_evidence(activity,dt,expected)
-y=activity(:)'-mean(activity);
-nfft=2^nextpow2(16*numel(y)); Y=abs(fft(y,nfft)).^2;
-freq=(0:nfft-1)/(nfft*dt);
-search=freq>=0.8*expected&freq<=1.2*expected;
-background=freq>=50&freq<=200&~search;
-[power,k]=max(Y(search)); candidates=freq(search);
-peak=candidates(k); contrast=power/(median(Y(background))+eps);
-end
-
-function [peak,contrast]=dominant_periodicity(activity,dt)
-[freq,power]=periodogram_curve(activity,dt);
-band=freq>=50&freq<=200;
-values=power(band); candidates=freq(band);
-[height,k]=max(values); peak=candidates(k);
-contrast=height/(median(values)+eps);
-end
-
 function plot_result(tw,f,W,Sf,St,Mf,Mt,M,Wout,outdir,ylimHz,Wauto,evidence)
 fig=figure('Visible','off','Color','w','Units','inches', ...
     'Position',[0.5 0.5 14 18]);
@@ -476,11 +520,4 @@ end
 exportgraphics(fig,fullfile(outdir,'paper_figure.png'),'Resolution',300);
 exportgraphics(fig,fullfile(outdir,'paper_figure.pdf'),'ContentType','vector');
 close(fig);
-end
-
-function [freq,power]=periodogram_curve(activity,dt)
-y=activity(:)'-mean(activity);
-nfft=2^nextpow2(16*numel(y));
-power=abs(fft(y,nfft)).^2;
-freq=(0:nfft-1)/(nfft*dt);
 end

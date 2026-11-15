@@ -2,7 +2,7 @@
 
 ## 核查范围与固定版本
 
-本次仅核查已有频率方向与时间方向三点检测、累积及几何平均融合。固定参考版本 `01ace753f92b4b1b77eb00b310f5e692f63a3637` 的三个 GitHub Actions Artifact（运行 `42999351528`、`42999351710`、`42999351656`）作为历史数值；核查版保留全部检测参数与输入片段。[最终核查运行 `43165502779`](https://github.com/collab-wq/Paper1/actions/runs/43165502779) 从提交 `85f178816df611682755d55fb301d2d1edd259e3` 重新校验原始文件，使用 MATLAB R2026b 和 Signal Processing Toolbox 执行合成、CWRU、Paderborn、XJTU-SY，共 36 项实验（合成 1 项，真实片段 35 段），逐字段比较旧版 JSON，**36/36 匹配**。`AUDIT_RESULTS.csv` 保存每个真实片段的关键指标；完整 JSON、日志和重新生成的逐段图保存在该运行的 `paper1-audit` Artifact（ID `13919598742`）。数值比较的相对容差为 `1e-8`；新增核查字段不用于判定旧版数值是否改变。
+本次仅核查已有频率方向与时间方向三点检测、累积及几何平均融合。固定参考版本 `01ace753f92b4b1b77eb00b310f5e692f63a3637` 的三个 GitHub Actions Artifact（运行 `42999351528`、`42999351710`、`42999351656`）作为历史数值；核查版保留全部检测参数与输入片段。[最终核查运行 `43165502779`](https://github.com/collab-wq/Paper1/actions/runs/43165502779) 从提交 `85f178816df611682755d55fb301d2d1edd259e3` 重新校验原始文件，使用 MATLAB R2026b 和 Signal Processing Toolbox 执行合成、CWRU、Paderborn、XJTU-SY，共 36 项实验（合成 1 项，真实片段 35 段），逐字段比较旧版 JSON，**36/36 匹配**。`archive/previous-algorithm/AUDIT_RESULTS.csv` 保存每个真实片段的关键指标；完整 JSON、日志和重新生成的逐段图保存在该运行的 `paper1-audit` Artifact（ID `13919598742`）。数值比较的相对容差为 `1e-8`；新增核查字段不用于判定旧版数值是否改变。
 
 ## 数学模型与 MATLAB 对照
 
@@ -31,7 +31,7 @@
 | Paderborn | 官方 K001、KA04、KI04 RAR 固定 SHA-256；每轴承 3 条 MAT，每条 2 个独立片段；读 `Y.Name=vibration_1` 及 speed/force/torque。 | 官方振动 64 kHz，工况 N15_M07_F10 标称 1500 rpm、0.7 Nm、1000 N；MAT 轴速约 1500 rpm，扭矩实测约 1.24–1.28 Nm。K001 健康、KA04 外圈疲劳点蚀、KI04 内圈疲劳点蚀。 | 名义 6203：8 球、球径 6.75 mm、节圆 28.55 mm、接触角 0°；按 MAT 转速计算 KA04 BPFO 约 76.35 Hz、KI04 BPFI 约 123.61 Hz；制造商差异仍可达约 1–2%。 |
 | XJTU-SY | 作者入口提供资料；经公开 ZIP 镜像按 HTTP Range 取 Bearing1_1 的 `1/2/69/82/109/123.csv`，每份 SHA-256、ZIP CRC、长度与列数均校验；读水平振动列。 | 标称 25.6 kHz、2100 rpm、12 kN；CSV 不含实测转速或力。早/中/后期仅代表同一轴承快照次序，不能当作独立标注的损伤程度。最终失效记录为外圈故障。 | 名义 LDK UER204：8 球、球径 7.92 mm、节圆 34.55 mm、接触角 0°；名义 BPFO 107.91 Hz、BPFI 172.09 Hz。 |
 
-每段实际起止样本、长度、`fs_hz`、目标峰及误差逐行列在 `AUDIT_RESULTS.csv`。CWRU 五段各 2048 点；Paderborn 十八段和 XJTU-SY 十二段各 4096 点。CWRU 原始 WVD 网格为 2048×4096，Paderborn 和 XJTU-SY 的完整 WVD 在选带后才裁频；MAT Artifact 保存的矩阵为了控制体积每四格抽取一格，数值指标和论文图仍从完整计算网格产生。
+每段实际起止样本、长度、`fs_hz`、目标峰及误差逐行列在 `archive/previous-algorithm/AUDIT_RESULTS.csv`。CWRU 五段各 2048 点；Paderborn 十八段和 XJTU-SY 十二段各 4096 点。CWRU 原始 WVD 网格为 2048×4096，Paderborn 和 XJTU-SY 的完整 WVD 在选带后才裁频；MAT Artifact 保存的矩阵为了控制体积每四格抽取一格，数值指标和论文图仍从完整计算网格产生。
 
 ### Paderborn KA04 时间栅格异常
 
@@ -61,7 +61,7 @@ Paderborn KA04 六段目标窗峰 73.24–77.15 Hz，融合对比度中位数约
 
 ## 实验分支：绝对值支撑与多频带独立自检
 
-本节只适用于 `experiment/absolute-support-multiband`；以上历史核查结论仍针对 `work` 的原方法，不能直接挪作新算法的验证结果。新分支基于 `work` 建立，未覆盖 `FINAL_RESULTS.md` 或旧 `AUDIT_RESULTS.csv`。
+本节只适用于 `experiment/absolute-support-multiband`；以上历史核查结论仍针对 `work` 的原方法，不能直接挪作新算法的验证结果。新分支基于 `work` 建立，未覆盖 `FINAL_RESULTS.md` 或旧 `archive/previous-algorithm/AUDIT_RESULTS.csv`。
 
 自检工作流先在无真实轴承数据条件下运行 `matlab/verify_abs_support_multiband.m`，再执行固定两带合成信号回归。[通过的 MATLAB 运行](https://github.com/collab-wq/Paper1/actions/runs/43605302178)保存了 `verification.json`、日志、合成指标与八联图；状态为 `PASS`。自检检查有符号均值后取绝对值、正负均值均有支撑、$P_t(W)=P_t(-W)$、$P_f(W)=P_f(-W)$、绝对值加权频率矩、两方向端点支撑、端点累积、逐带时间归一化、R 带几何平均的零值处理和候选不足时报错。
 
@@ -79,8 +79,14 @@ Paderborn KA04 六段目标窗峰 73.24–77.15 Hz，融合对比度中位数约
 
 [依赖自检的 MATLAB 首次完整运行](https://github.com/collab-wq/Paper1/actions/runs/43605759668)已结束：九个数据集 × R 作业及 CSV 聚合作业均成功。`MULTIBAND_RESULTS.csv` 恰有 105 行，聚合程序对每个成功行要求对应的 MATLAB `result.json` 存在、实际频带数等于指定 R，并阻止重复片段键；结果为 104 行 `PASS`、1 行 `FAIL`。失败行是 CWRU `118.mat`、起始样本 1、R=4，原因是只有 3 个满足既定间隔的候选峰。该失败不属于 MATLAB 运行崩溃，明确保留于 CSV 和对应作业日志。
 
-三个数据集分别沿用既有下载与完整性校验脚本；原始输入片段、采样率、转速来源、时间窗、步长、阈值、目标窗和背景统计未改变。自动选带统计量与检测支撑按本分支新定义变化，因此 R=2 不是 `work` 旧方法的数值复现，跨方法比较不得把两者混为仅改变频带数量。由 `MULTIBAND_RESULTS.csv` 可见，增加带数没有普遍提高目标峰定位或对比度，且 Paderborn KI04 的目标误差中位数随 R 增大而恶化；不得选择单一有利图片替代全量判断。原有 `FINAL_RESULTS.md` 和 `AUDIT_RESULTS.csv` 保留为 `work` 方法的历史参考。
+三个数据集分别沿用既有下载与完整性校验脚本；原始输入片段、采样率、转速来源、时间窗、步长、阈值、目标窗和背景统计未改变。自动选带统计量与检测支撑按本分支新定义变化，因此 R=2 不是 `work` 旧方法的数值复现，跨方法比较不得把两者混为仅改变频带数量。由 `MULTIBAND_RESULTS.csv` 可见，增加带数没有普遍提高目标峰定位或对比度，且 Paderborn KI04 的目标误差中位数随 R 增大而恶化；不得选择单一有利图片替代全量判断。原有 `FINAL_RESULTS.md` 和 `archive/previous-algorithm/AUDIT_RESULTS.csv` 保留为 `work` 方法的历史参考。
 
 ### 绘图修正后的复核
 
 纵轴标签与高频刻度的重叠只涉及 `plot_result` 排版。修正后[九组 MATLAB 重绘运行](https://github.com/collab-wq/Paper1/actions/runs/43607357936)再次全部完成，`self-check` 与九个真实数据作业均通过；重绘聚合仍为 105 行、104 成功、1 个同样的候选带不足失败。该运行最初的聚合作业因 CSV 与已提交文件完全相同而在空 `git commit` 处返回失败；已在分支工作流中加入无变化时跳过提交的处理。随后[独立数值复核与图像发布运行](https://github.com/collab-wq/Paper1/actions/runs/43619390690)从全部九个重绘 Artifact 重新聚合，`cmp` 证实 105 行 CSV 与已提交版本逐字节一致，作业成功。三张最终代表 PNG 经正常尺寸与放大检查，频率轴标签与刻度分开，八联顺序、单位及谐波标记完整。
+
+## 正式主支集成自查
+
+本节区分四类证据：历史 `work` 及固定 R 实验的数值结果仍为已运行 MATLAB 证据；新自适应方法的公式与调用关系可静态核查；`verify_adaptive_band_selection` 是不读取真实数据的确定性 MATLAB 单元检查；自适应真实轴承实验本次未运行。旧 `AUDIT_RESULTS.csv` 原样移至 `archive/previous-algorithm/`，`MULTIBAND_RESULTS.csv` 数值保留。`main_Paper1` 一次计算原始 WVD，`run_adaptive_candidates` 复用它评分各 R 与假设；选择阶段不接收文件名或真实标签，诊断的正值活动量与 `fault_evidence` 背景定义未改。
+
+自检以 GitHub Actions `adaptive-self-check` 日志和 JSON 为实际通过依据；若工作流尚未通过，不应将静态检查等同于 MATLAB 运行通过。真实数据自适应效果仍待后续手动验证。
