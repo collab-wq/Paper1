@@ -71,3 +71,47 @@ jobs:
             results/preflight/${{ matrix.dataset }}/
             input/${{ matrix.dataset }}/source_manifest.csv
           if-no-files-found: warn
+  trial:
+    needs: data-preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        dataset: [cwru, paderborn, xjtu]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive reader
+        if: matrix.dataset == 'paderborn'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq unar
+      - name: Download trial source
+        run: |
+          case '${{ matrix.dataset }}' in
+            cwru) bash scripts/download_cwru.sh ;;
+            paderborn) bash scripts/download_paderborn.sh ;;
+            xjtu) python scripts/download_xjtu.py --bearing Bearing1_2 --snapshot 1 --fetch ;;
+          esac
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run one adaptive real-data segment
+        uses: matlab-actions/run-command@v3
+        with:
+          command: >-
+            addpath('matlab');
+            if strcmp('${{ matrix.dataset }}','cwru'),
+              main_Paper1('cwru','input/cwru/105.mat',1);
+            elseif strcmp('${{ matrix.dataset }}','paderborn'),
+              main_Paper1('paderborn','input/paderborn/KA04/N15_M07_F10_KA04_1.mat',64001);
+            else,
+              main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_2/1.csv',4097);
+            end
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trial-${{ matrix.dataset }}
+          path: |
+            results/adaptive-band-selection/
+            results/input_segments/
+          retention-days: 90
+          if-no-files-found: warn

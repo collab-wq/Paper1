@@ -104,6 +104,7 @@ def main():
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--dest", default="input/xjtu-sy")
     parser.add_argument("--bearing", help="Extract every numbered CSV of this bearing")
+    parser.add_argument("--snapshot", type=int, help="Trial-only snapshot number")
     args = parser.parse_args()
     size, entries = directory()
     assert size == 5447931446, f"Unexpected archive size {size}"
@@ -142,6 +143,9 @@ def main():
     print(f"Archive {size} bytes, {len(entries)} members", flush=True)
     if not args.fetch:
         return
+    if args.snapshot is not None:
+        assert args.bearing and args.snapshot in selected
+        indices = [args.snapshot]
     os.makedirs(dest, exist_ok=True)
     provenance = {"author_entry": AUTHOR, "mirror": URL, "archive_bytes": size,
                   "sampling_hz": 25600, "bearing": args.bearing or "Bearing1_1",
