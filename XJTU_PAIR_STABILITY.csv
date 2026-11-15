@@ -1,0 +1,7 @@
+bearing,snapshots_with_results,incomplete_snapshots,both_selected,both_no_valid,one_selected,same_R_given_both_selected,same_hypothesis_given_both_selected,abs_J_difference_median
+Bearing1_2,161,0,151,1,9,58,124,0.005896749812746238
+Bearing1_3,158,0,137,1,20,53,97,0.017722159217128497
+Bearing2_1,491,0,306,26,159,93,186,0.14229707971478478
+Bearing2_2,161,0,145,4,12,55,103,0.009738273975632983
+Bearing3_1,2538,0,1618,102,818,558,915,0.13461914936240438
+Bearing3_4,1515,0,1079,39,397,365,545,0.14356707676153346
