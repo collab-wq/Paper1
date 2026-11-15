@@ -14,11 +14,18 @@ end
 assert(~isempty(files) && all(isfinite(indices)) && ...
     numel(unique(indices))==numel(indices));
 [indices,order]=sort(indices); files=files(order);
-positions=unique(max(1,min(numel(files),round([.1 .5 .9]*numel(files)))));
+fullCounts=containers.Map({'Bearing1_2','Bearing1_3','Bearing2_1', ...
+    'Bearing2_2','Bearing3_1','Bearing3_4'}, ...
+    {161,158,491,161,2538,1515});
+positions=unique(max(1,round([.1 .5 .9]*fullCounts(bearing))));
 for k=1:numel(files)
     file=fullfile(folder,files(k).name);
     for first=[4097 16385]
-        main_Paper1('xjtu',file,first,'auto','unknown',ismember(k,positions));
+        try
+            main_Paper1('xjtu',file,first,'auto','unknown',ismember(indices(k),positions));
+        catch err
+            record_segment_failure('xjtu',file,first,err);
+        end
     end
     fprintf('XJTU %s snapshot %d/%d (file %d.csv) complete\n', ...
         bearing,k,numel(files),indices(k));

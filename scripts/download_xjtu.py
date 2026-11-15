@@ -105,6 +105,8 @@ def main():
     parser.add_argument("--dest", default="input/xjtu-sy")
     parser.add_argument("--bearing", help="Extract every numbered CSV of this bearing")
     parser.add_argument("--snapshot", type=int, help="Trial-only snapshot number")
+    parser.add_argument("--start-number", type=int, help="First numbered snapshot in shard")
+    parser.add_argument("--end-number", type=int, help="Last numbered snapshot in shard")
     args = parser.parse_args()
     size, entries = directory()
     assert size == 5447931446, f"Unexpected archive size {size}"
@@ -146,6 +148,11 @@ def main():
     if args.snapshot is not None:
         assert args.bearing and args.snapshot in selected
         indices = [args.snapshot]
+    if args.start_number is not None or args.end_number is not None:
+        assert args.bearing and args.start_number is not None and args.end_number is not None
+        assert 1 <= args.start_number <= args.end_number
+        indices = [n for n in indices if args.start_number <= n <= args.end_number]
+        assert indices, 'Empty requested snapshot shard'
     os.makedirs(dest, exist_ok=True)
     provenance = {"author_entry": AUTHOR, "mirror": URL, "archive_bytes": size,
                   "sampling_hz": 25600, "bearing": args.bearing or "Bearing1_1",

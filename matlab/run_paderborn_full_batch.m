@@ -7,7 +7,11 @@ for b=1:numel(ids)
             sprintf('N15_M07_F10_%s_%d.mat',ids{b},rec));
         assert(isfile(file),'Missing Paderborn record %s',file);
         for first=[64001 128001]
-            main_Paper1('paderborn',file,first);
+            try
+                main_Paper1('paderborn',file,first);
+            catch err
+                record_segment_failure('paderborn',file,first,err);
+            end
         end
     end
 end

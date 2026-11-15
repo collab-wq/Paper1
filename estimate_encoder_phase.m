@@ -2,7 +2,9 @@ function encoder=estimate_encoder_phase(channel,fs,pulsesPerRev)
 % Recover rising-edge shaft phase from the recorded encoder channel.
 channel=double(channel(:));
 assert(all(isfinite(channel)) && fs>0 && pulsesPerRev>0);
-low=prctile(channel,5); high=prctile(channel,95);
+ordered=sort(channel);
+low=ordered(max(1,round(0.05*numel(ordered))));
+high=ordered(min(numel(ordered),round(0.95*numel(ordered))));
 assert(high-low>0,'Encoder channel has no pulse amplitude');
 threshold=(low+high)/2;
 edge=find(channel(1:end-1)<threshold & channel(2:end)>=threshold)+1;

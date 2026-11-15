@@ -7,7 +7,11 @@ for id=ids
     assert(isfield(d,[key '_DE_time']) && isfield(d,[key 'RPM']));
     assert(numel(d.([key '_DE_time']))>=8193+2047);
     for first=[1 4097 8193]
-        main_Paper1('cwru',file,first);
+        try
+            main_Paper1('cwru',file,first);
+        catch err
+            record_segment_failure('cwru',file,first,err);
+        end
     end
 end
 end

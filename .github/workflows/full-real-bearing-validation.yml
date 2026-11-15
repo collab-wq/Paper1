@@ -10,14 +10,16 @@ on:
       - 'scripts/download_xjtu.py'
       - 'scripts/preflight_data.py'
       - 'matlab/verify_adaptive_band_selection.m'
+      - 'matlab/verify_ottawa_order.m'
       - 'main_Paper1.m'
       - 'run_adaptive_order_candidates.m'
       - 'fault_evidence_order.m'
       - 'estimate_encoder_phase.m'
       - 'matlab/run_*_batch.m'
+      - 'scripts/check_trial.py'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   self-check:
     runs-on: ubuntu-latest
@@ -29,7 +31,7 @@ jobs:
           products: Signal_Processing_Toolbox
       - uses: matlab-actions/run-command@v3
         with:
-          command: "addpath('matlab'); verify_adaptive_band_selection"
+          command: "addpath('matlab'); verify_adaptive_band_selection; verify_ottawa_order"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -114,6 +116,8 @@ jobs:
             else,
               main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_2/1.csv',4097);
             end
+      - name: Confirm trial candidates and saved input
+        run: python scripts/check_trial.py '${{ matrix.dataset }}'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -123,3 +127,134 @@ jobs:
             results/input_segments/
           retention-days: 90
           if-no-files-found: warn
+  plan-xjtu:
+    needs: trial
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: echo "matrix=$(python scripts/plan_xjtu_shards.py)" >> "$GITHUB_OUTPUT"
+  full-constant:
+    needs: trial
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - {dataset: cwru, record: all}
+          - {dataset: paderborn, record: all}
+          - {dataset: ottawa, record: I-A-2}
+          - {dataset: ottawa, record: I-B-2}
+          - {dataset: ottawa, record: I-C-2}
+          - {dataset: ottawa, record: O-A-2}
+          - {dataset: ottawa, record: O-B-2}
+          - {dataset: ottawa, record: O-C-2}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive reader
+        if: matrix.dataset == 'paderborn'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq unar
+      - name: Download and verify source files
+        run: |
+          case '${{ matrix.dataset }}' in
+            cwru) bash scripts/download_cwru.sh ;;
+            paderborn) bash scripts/download_paderborn.sh ;;
+            ottawa) bash scripts/download_ottawa.sh ;;
+          esac
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run full adaptive analysis
+        uses: matlab-actions/run-command@v3
+        with:
+          command: >-
+            addpath('matlab');
+            if strcmp('${{ matrix.dataset }}','cwru'), run_cwru_full_batch;
+            elseif strcmp('${{ matrix.dataset }}','paderborn'), run_paderborn_full_batch;
+            else, run_ottawa_batch('${{ matrix.record }}'); end
+      - name: Preserve source manifest
+        if: always()
+        run: |
+          mkdir -p results/source
+          cp input/${{ matrix.dataset }}/source_manifest.csv results/source/${{ matrix.dataset }}-${{ matrix.record }}.csv || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-${{ matrix.dataset }}-${{ matrix.record }}
+          path: results/
+          retention-days: 90
+          if-no-files-found: warn
+  full-xjtu:
+    needs: [trial, plan-xjtu]
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.plan-xjtu.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and CRC-check every snapshot in this shard
+        run: >-
+          python scripts/download_xjtu.py --bearing '${{ matrix.bearing }}'
+          --start-number ${{ matrix.start }} --end-number ${{ matrix.end }} --fetch
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run both windows of every snapshot
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); run_xjtu_lifetime_batch('${{ matrix.bearing }}')"
+      - name: Preserve per-file source hashes
+        if: always()
+        run: |
+          mkdir -p results/source
+          find input/xjtu-sy -name provenance.json -exec cp '{}' 'results/source/xjtu-${{ matrix.bearing }}-${{ matrix.start }}-${{ matrix.end }}.json' \;
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-xjtu-${{ matrix.bearing }}-${{ matrix.start }}-${{ matrix.end }}
+          path: results/
+          retention-days: 90
+          if-no-files-found: warn
+  aggregate:
+    if: always() && needs.trial.result == 'success'
+    needs: [trial, full-constant, full-xjtu]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: full-*
+          merge-multiple: true
+          path: collected
+      - name: Build full result and segment manifests
+        run: python scripts/summarize_full_results.py collected --out results/summary
+      - name: Render full-life and variable-speed trends
+        run: |
+          python -m pip install --quiet matplotlib numpy
+          python scripts/plot_full_trends.py
+      - name: Commit traceable summary tables to experiment branch
+        if: github.ref == 'refs/heads/experiment/full-real-bearing-validation'
+        run: |
+          for file in REAL_DATA_FULL_RESULTS.csv DATASET_MANIFEST.csv SEGMENT_MANIFEST.csv SELECTED_SEGMENT_RESULTS.csv XJTU_LIFETIME_SUMMARY.csv OTTAWA_ORDER_TRACKING.csv COVERAGE.csv FAILED_SEGMENTS.csv; do
+            cp "results/summary/$file" "$file"
+          done
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add *.csv
+          if ! git diff --cached --quiet; then
+            git commit -m 'Record full real-bearing validation tables [skip ci]'
+            git push origin HEAD:experiment/full-real-bearing-validation
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-real-summary
+          path: results/summary/
+          retention-days: 90

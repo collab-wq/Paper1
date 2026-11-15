@@ -10,8 +10,12 @@ for i=1:numel(names)
     starts=unique([1:hop:(2000000-lengthRaw+1),2000000-lengthRaw+1]);
     representatives=unique(max(1,min(numel(starts),round([.05 .5 .95]*numel(starts)))));
     for k=1:numel(starts)
-        main_Paper1('ottawa',file,starts(k),'auto','unknown', ...
-            ismember(k,representatives));
+        try
+            main_Paper1('ottawa',file,starts(k),'auto','unknown', ...
+                ismember(k,representatives));
+        catch err
+            record_segment_failure('ottawa',file,starts(k),err);
+        end
         fprintf('Ottawa %s window %d/%d complete\n', ...
             names{i},k,numel(starts));
     end
