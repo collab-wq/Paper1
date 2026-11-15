@@ -7,7 +7,9 @@ declare -A expected_sha=(
   [KA04]=6fc317157e2cd4cb55bc54d6fac1b1753f8ab31abcccd1ac68cbfb78e5e8299d
   [KI04]=8fde861a9ceac4b41fe8a030b4c5bbb4b9b9af0590d9338a8de0150b4661be77
 )
-for bearing in K001 KA04 KI04; do
+bearing_list=(KA04 KA16 KB24 KI21 KI17 KI04)
+printf 'bearing,source_url,archive_sha256,archive_bytes\n' > "$root/source_manifest.csv"
+for bearing in "${bearing_list[@]}"; do
   archive="$root/${bearing}.rar"
   target="$root/$bearing"
   mkdir -p "$target"
@@ -15,7 +17,12 @@ for bearing in K001 KA04 KI04; do
     "https://groups.uni-paderborn.de/kat/BearingDataCenter/${bearing}.rar" \
     --output "$archive"
   sha256sum "$archive"
-  printf '%s  %s\n' "${expected_sha[$bearing]}" "$archive" | sha256sum --check
+  digest=$(sha256sum "$archive" | cut -d' ' -f1)
+  bytes=$(stat -c '%s' "$archive")
+  printf '%s,%s,%s,%s\n' "$bearing" "https://groups.uni-paderborn.de/kat/BearingDataCenter/${bearing}.rar" "$digest" "$bytes" >> "$root/source_manifest.csv"
+  if [[ -n "${expected_sha[$bearing]:-}" ]]; then
+    printf '%s  %s\n' "${expected_sha[$bearing]}" "$archive" | sha256sum --check
+  fi
   unar -quiet -no-directory -output-directory "$target" "$archive" \
     "${bearing}/N15_M07_F10_${bearing}_1.mat" \
     "${bearing}/N15_M07_F10_${bearing}_2.mat" \

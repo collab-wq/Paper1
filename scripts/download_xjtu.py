@@ -103,36 +103,71 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--fetch", action="store_true")
     parser.add_argument("--dest", default="input/xjtu-sy")
+    parser.add_argument("--bearing", help="Extract every numbered CSV of this bearing")
     args = parser.parse_args()
     size, entries = directory()
     assert size == 5447931446, f"Unexpected archive size {size}"
     selected = {}
-    for index in CHOSEN:
-        matches = [(name, entry) for name, entry in entries.items() if
-                   name.endswith(f"/35Hz12kN/Bearing1_1/{index}.csv") or
-                   name == f"35Hz12kN/Bearing1_1/{index}.csv"]
-        assert len(matches) == 1, f"Snapshot {index} missing or ambiguous"
-        selected[index] = matches[0]
+    if args.bearing:
+        groups = {"Bearing1_2": "35Hz12kN", "Bearing1_3": "35Hz12kN",
+                  "Bearing2_1": "37.5Hz11kN", "Bearing2_2": "37.5Hz11kN",
+                  "Bearing3_1": "40Hz10kN", "Bearing3_4": "40Hz10kN"}
+        assert args.bearing in groups, "Unsupported bearing"
+        group = groups[args.bearing]
+        suffix = f"/{group}/{args.bearing}/"
+        for name, entry in entries.items():
+            normalized = "/" + name.lstrip("/")
+            if suffix not in normalized or not normalized.endswith(".csv"):
+                continue
+            leaf = normalized.rsplit("/", 1)[-1]
+            assert leaf[:-4].isdigit(), f"Unexpected snapshot name {name}"
+            index = int(leaf[:-4])
+            assert index not in selected, f"Duplicate snapshot {index}"
+            selected[index] = (name, entry)
+        assert selected, f"No snapshots in {group}/{args.bearing}"
+        indices = sorted(selected)
+        missing = sorted(set(range(indices[0], indices[-1] + 1)) - set(indices))
+        print(f"BEARING {args.bearing}: {len(indices)} snapshots; missing {missing}", flush=True)
+        dest = os.path.join(args.dest, group, args.bearing)
+    else:
+        for index in CHOSEN:
+            matches = [(name, entry) for name, entry in entries.items() if
+                       name.endswith(f"/35Hz12kN/Bearing1_1/{index}.csv") or
+                       name == f"35Hz12kN/Bearing1_1/{index}.csv"]
+            assert len(matches) == 1, f"Snapshot {index} missing or ambiguous"
+            selected[index] = matches[0]
+        indices = sorted(selected)
+        missing = []
+        dest = os.path.join(args.dest, "35Hz12kN", "Bearing1_1")
     print(f"Archive {size} bytes, {len(entries)} members", flush=True)
-    for index, (name, entry) in selected.items():
-        print(f"SELECT {index} {name} {entry[3]} bytes", flush=True)
     if not args.fetch:
         return
-    dest = os.path.join(args.dest, "35Hz12kN", "Bearing1_1")
     os.makedirs(dest, exist_ok=True)
     provenance = {"author_entry": AUTHOR, "mirror": URL, "archive_bytes": size,
-                  "sampling_hz": 25600, "snapshots": {}}
-    for index, (name, entry) in selected.items():
-        data = member(entry)
+                  "sampling_hz": 25600, "bearing": args.bearing or "Bearing1_1",
+                  "snapshot_count": len(indices), "missing_numbers": missing,
+                  "snapshots": {}}
+    for index in indices:
+        name, entry = selected[index]
+        path = os.path.join(dest, f"{index}.csv")
+        if os.path.isfile(path):
+            with open(path, "rb") as src:
+                data = src.read()
+            assert len(data) == entry[3] and zlib.crc32(data) & 0xFFFFFFFF == entry[1]
+        else:
+            data = member(entry)
+            with open(path, "wb") as out:
+                out.write(data)
         digest = hashlib.sha256(data).hexdigest()
-        assert digest == CHOSEN[index], f"SHA-256 mismatch: {name}"
-        with open(os.path.join(dest, f"{index}.csv"), "wb") as out:
-            out.write(data)
+        if not args.bearing:
+            assert digest == CHOSEN[index], f"SHA-256 mismatch: {name}"
         provenance["snapshots"][str(index)] = {
-            "zip_member": name, "sha256": digest, "bytes": len(data)}
-        print(f"VERIFIED {index} {digest} {len(data)} bytes", flush=True)
-    with open(os.path.join(args.dest, "provenance.json"), "w") as out:
+            "zip_member": name, "sha256": digest, "bytes": len(data),
+            "zip_crc32": f"{entry[1]:08x}"}
+        print(f"VERIFIED {args.bearing or 'Bearing1_1'} {index} {digest} {len(data)} bytes", flush=True)
+    with open(os.path.join(dest, "provenance.json"), "w") as out:
         json.dump(provenance, out, indent=2)
+
 
 
 if __name__ == "__main__":

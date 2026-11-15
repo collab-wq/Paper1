@@ -1,0 +1,73 @@
+name: Paper1 full real bearing validation
+on:
+  push:
+    branches: [experiment/full-real-bearing-validation]
+    paths:
+      - '.github/workflows/full-real-bearing-validation.yml'
+      - 'scripts/download_cwru.sh'
+      - 'scripts/download_paderborn.sh'
+      - 'scripts/download_ottawa.sh'
+      - 'scripts/download_xjtu.py'
+      - 'scripts/preflight_data.py'
+      - 'matlab/verify_adaptive_band_selection.m'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); verify_adaptive_band_selection"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-real-self-check
+          path: results/adaptive-self-check/
+  data-preflight:
+    needs: self-check
+    strategy:
+      fail-fast: false
+      matrix:
+        dataset: [cwru, paderborn, ottawa, xjtu]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive reader
+        if: matrix.dataset == 'paderborn'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq unar
+      - name: Inspect XJTU central directory
+        if: matrix.dataset == 'xjtu'
+        run: |
+          mkdir -p results/preflight/xjtu
+          for bearing in Bearing1_2 Bearing1_3 Bearing2_1 Bearing2_2 Bearing3_1 Bearing3_4; do
+            python scripts/download_xjtu.py --bearing "$bearing" | tee -a results/preflight/xjtu/directory.log
+          done
+      - name: Download specified records
+        if: matrix.dataset != 'xjtu'
+        run: |
+          case '${{ matrix.dataset }}' in
+            cwru) bash scripts/download_cwru.sh ;;
+            paderborn) bash scripts/download_paderborn.sh ;;
+            ottawa) bash scripts/download_ottawa.sh ;;
+          esac
+      - name: Inspect MAT metadata and channels
+        if: matrix.dataset != 'xjtu'
+        run: |
+          python -m pip install --quiet scipy numpy
+          python scripts/preflight_data.py '${{ matrix.dataset }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preflight-${{ matrix.dataset }}
+          path: |
+            results/preflight/${{ matrix.dataset }}/
+            input/${{ matrix.dataset }}/source_manifest.csv
+          if-no-files-found: warn

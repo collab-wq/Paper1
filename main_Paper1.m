@@ -1,4 +1,4 @@
-function result = main_Paper1(mode, dataFile, startIndex, numBands, requestedHypothesis)
+function result = main_Paper1(mode, dataFile, startIndex, numBands, requestedHypothesis, exportFigure)
 % Paper1: direct-WVD dual-direction endpoint/midpoint/endpoint detector.
 % Usage: main_Paper1('synthetic'), main_Paper1('cwru',file), or
 %        main_Paper1('paderborn',file,startIndex)
@@ -11,6 +11,7 @@ if nargin<4 || isempty(numBands)
     else, numBands='auto'; end
 end
 if nargin<5, requestedHypothesis='unknown'; end
+if nargin<6, exportFigure=true; end
 isAuto=ischar(numBands) || isstring(numBands);
 assert((isAuto && strcmpi(char(numBands),'auto')) || ...
     (~isAuto && isscalar(numBands) && ismember(numBands,[2 3 4])), ...
@@ -74,7 +75,11 @@ elseif strcmp(mode,'xjtu')
     record=readmatrix(dataFile);
     assert(size(record,2)==2 && size(record,1)==32768 && ...
         all(isfinite(record(:))),'Invalid two-channel XJTU-SY snapshot');
-    fs=25600; rpm=2100; forceN=12000; torqueNm=NaN;
+    fs=25600; torqueNm=NaN;
+    if contains(dataFile,'35Hz12kN'), rpm=2100; forceN=12000;
+    elseif contains(dataFile,'37.5Hz11kN'), rpm=2250; forceN=11000;
+    elseif contains(dataFile,'40Hz10kN'), rpm=2400; forceN=10000;
+    else, error('XJTU condition directory is missing or unrecognized'); end
     channel='Horizontal_vibration_signals';
     segmentN=4096;
     assert(startIndex>=1 && startIndex+segmentN-1<=size(record,1));
@@ -85,7 +90,8 @@ elseif strcmp(mode,'xjtu')
         'activityThr',0.005,'maxPairDelaySec',0.12, ...
         'minPeakDistanceSec',0.004);
     [~,stem]=fileparts(dataFile);
-    outdir=fullfile('results','xjtu',sprintf('Bearing1_1-%s-start%d',stem,startIndex));
+    [bearingDir,~]=fileparts(dataFile); [~,bearingName]=fileparts(bearingDir);
+    outdir=fullfile('results','xjtu',sprintf('%s-%s-start%d',bearingName,stem,startIndex));
 else
     error('Unknown mode %s',mode);
 end
@@ -99,6 +105,9 @@ end
 if ~exist(outdir,'dir'), mkdir(outdir); end
 diary(fullfile(outdir,'experiment.log'));
 cleanup=onCleanup(@() diary('off'));
+if isAuto
+    save_input_segment(mode,dataFile,startIndex,x,fs,rpm,outdir);
+end
 [W,f,tw]=wvd(hilbert(x),fs);
 W=real(W); f=f(:); tw=tw(:); F=numel(f); T=numel(tw);
 df=median(diff(f)); dt=median(diff(tw));
@@ -142,8 +151,10 @@ if isempty(p.bands)
                 'fault_name',chosen.hypothesis);
             plotLimits=[max(0,min(chosen.bands_hz(:,1))-600), ...
                 min(fs/2,max(chosen.bands_hz(:,2))+600)];
-            plot_result(tw,maps.f,maps.W,maps.Sf,maps.St,maps.Mf, ...
-                maps.Mt,maps.M,maps.Wout,outdir,plotLimits,[],evidence);
+            if exportFigure
+                plot_result(tw,maps.f,maps.W,maps.Sf,maps.St,maps.Mf, ...
+                    maps.Mt,maps.M,maps.Wout,outdir,plotLimits,[],evidence);
+            end
             frequency_stride=4; time_stride=4;
             fi=1:frequency_stride:numel(maps.f);
             ti=1:time_stride:numel(tw);
@@ -158,7 +169,9 @@ if isempty(p.bands)
                 'time_stride',time_stride, ...
                 'raw_activity',maps.raw_activity, ...
                 'fused_activity',maps.fused_activity);
-            save(fullfile(outdir,'experiment_arrays.mat'),'archive','-v7.3');
+            if exportFigure
+                save(fullfile(outdir,'experiment_arrays.mat'),'archive','-v7.3');
+            end
         end
         write_adaptive_candidate_csv(fullfile(outdir,'candidates.csv'),result);
         fid=fopen(fullfile(outdir,'result.json'),'w');
@@ -520,4 +533,28 @@ end
 exportgraphics(fig,fullfile(outdir,'paper_figure.png'),'Resolution',300);
 exportgraphics(fig,fullfile(outdir,'paper_figure.pdf'),'ContentType','vector');
 close(fig);
+end
+
+function save_input_segment(mode,dataFile,startIndex,x,fs,rpm,outdir)
+% Exact double samples supplied to hilbert/wvd, independent of selection status.
+relative=erase(outdir,[fullfile('results','adaptive-band-selection') filesep]);
+segmentDir=fullfile('results','input_segments',relative);
+if ~exist(segmentDir,'dir'), mkdir(segmentDir); end
+binaryFile=fullfile(segmentDir,'wvd_input_float64.bin');
+fid=fopen(binaryFile,'w','ieee-le'); assert(fid>0);
+written=fwrite(fid,x,'double'); fclose(fid);
+assert(written==numel(x));
+[code,line]=system(sprintf('sha256sum "%s"',binaryFile));
+assert(code==0,'Input segment SHA-256 failed');
+parts=strsplit(strtrim(line)); digest=parts{1};
+metadata=struct('dataset',mode,'source_file',dataFile, ...
+    'start_sample',startIndex,'end_sample',startIndex+numel(x)-1, ...
+    'samples',numel(x),'channel','', 'sampling_hz',fs,'rpm',rpm, ...
+    'sample_encoding','float64 little-endian','sha256',digest);
+if strcmp(mode,'cwru'), metadata.channel='DE_time';
+elseif strcmp(mode,'paderborn'), metadata.channel='vibration_1';
+elseif strcmp(mode,'xjtu'), metadata.channel='Horizontal_vibration_signals'; end
+save(fullfile(segmentDir,'wvd_input.mat'),'x','metadata','-v7');
+fid=fopen(fullfile(segmentDir,'metadata.json'),'w'); assert(fid>0);
+fprintf(fid,'%s\n',jsonencode(metadata)); fclose(fid);
 end

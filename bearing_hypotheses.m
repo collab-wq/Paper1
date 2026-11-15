@@ -23,7 +23,7 @@ switch char(mode)
         names={'BPFO','BPFI','BSF'};
         frequencies=[balls/2*(1-ratio),balls/2*(1+ratio), ...
             1/(2*ratio)*(1-ratio^2)]*shaftHz;
-        source='nominal LDK UER204 geometry and nominal 2100 RPM';
+        source='nominal LDK UER204 geometry and condition-specific nominal RPM';
     otherwise
         error('No bearing geometry or fault factors for mode %s',mode);
 end
