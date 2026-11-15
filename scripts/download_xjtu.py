@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch six XJTU-SY Bearing1_1 snapshots without storing the 5.45 GB ZIP.
+"""Fetch selected XJTU-SY bearing snapshots without storing the 5.45 GB ZIP.
 
 ZIP64 range-reader structure adapted from Serhii Zabolotnii's MIT-licensed
 fetch_xjtu_sy.py (2026), https://github.com/SZabolotnii/DSGE_PIF-code-supplement.
