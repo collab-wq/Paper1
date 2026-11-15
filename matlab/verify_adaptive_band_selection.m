@@ -41,6 +41,7 @@ for R=2:4
     check(sprintf('R%d all band combinations',R),nchoosek(R,2)==pairCounts(R-1));
     p=parameters(bands);
     [Sf,St,E,peakIdx,pairs,counts]=dual_detector_abs_multiband(W,f,tw,p);
+    [SfNeg,StNeg,ENeg,~,~,countsNeg]=dual_detector_abs_multiband(-W,f,tw,p);
     check(sprintf('R%d detector output dimensions',R), ...
         isequal(size(Sf),size(W)) && isequal(size(St),size(W)) && numel(E)==numel(tw));
     check(sprintf('R%d all combinations active',R), ...
@@ -48,11 +49,26 @@ for R=2:4
     check(sprintf('R%d time endpoint and pairs',R),~isempty(peakIdx) && pairs>0);
     check(sprintf('R%d finite normalized activity',R), ...
         all(isfinite(E)) && all(E>=0) && max(E)<=1+1e-12);
+    check(sprintf('R%d signed WVD detection symmetry',R), ...
+        max(abs(Sf(:)-SfNeg(:)))<1e-10 && ...
+        max(abs(St(:)-StNeg(:)))<1e-10 && ...
+        max(abs(E(:)-ENeg(:)))<1e-10 && isequal(counts,countsNeg));
 end
 check('geometric activity R2 reduction',sqrt(2*8)==prod([2 8])^(1/2));
 check('zero-band geometric activity',prod([2 8 0])^(1/3)==0);
 one=exp(-0.5*((f-200)/20).^2)*ones(1,5);
 check('insufficient R4 remains insufficient',numel(find_resonance_candidates(one,f,30,100,1200,200))<4);
+fSmall=(0:10:700)'; tSmall=(0:79)'/1000;
+small=zeros(numel(fSmall),numel(tSmall));
+small(fSmall==200,:)=1; small(fSmall==500,:)=-1;
+small(fSmall==350,:)=0.5*sin(2*pi*90*tSmall).';
+pSmall=parameters([200 200;500 500]);
+pSmall.spanHz=20; pSmall.freqAvgHz=20;
+[SfSmall,~,~,~,~,smallCounts]= ...
+    dual_detector_abs_multiband(small,fSmall,tSmall,pSmall);
+check('triplets accumulate at both endpoints',sum(smallCounts,'all')>0 && ...
+    any(SfSmall(fSmall==200,:)>0) && any(SfSmall(fSmall==500,:)>0));
+check('triplet midpoint is not an output endpoint',all(SfSmall(fSmall==350,:)==0));
 
 fs=1000; N=100; delta=fs/N;
 a=evaluate_band_count(2,'BPFO',100,100.5,200,fs,N);
@@ -118,6 +134,12 @@ csvText=fileread(csvFile);
 check('candidate CSV contains score and status',contains(csvText,'location_confidence') && ...
     contains(csvText,'contrast_utility') && contains(csvText,'valid'));
 check('candidate JSON encodes all evaluations',contains(jsonencode(trial),'candidates'));
+threeBand=W- signs(4)*(5-4)*exp(-0.5*((f-centers(4))/18).^2)*pulse.';
+[partial,~]=run_adaptive_candidates(threeBand,f,tw,p,'cwru',2000,1800,200,choice,'BPFO');
+check('R4 missing while R2 and R3 evaluated',numel(partial.candidates)==3 && ...
+    ~partial.candidates(3).valid && ...
+    contains(partial.candidates(3).reason,'INSUFFICIENT_BANDS') && ...
+    all(isfinite([partial.candidates(1:2).raw_target_peak_hz])));
 
 report=struct('status','PASS','count',numel(names), ...
     'tests',struct('name',names,'status',states,'detail',details));
