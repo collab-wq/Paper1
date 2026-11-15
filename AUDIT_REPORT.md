@@ -98,3 +98,21 @@ MathJax 3.2.2 对正式文档的 122 处行内及独立数学表达式逐一解�
 ## 四套真实数据全量验证分支的证据界限
 
 本分支从正式 `main` 创建，核心检测数学与阈值未改。下载、MAT/CSV 结构检查与 MATLAB 确定性自检属于正式实验前置条件；来源预检不代替逐段 WVD 实验。XJTU 目录枚举得到 5024 个实际快照，两个固定窗口的计划数为 10048；汇总程序用预定数量、逐段 `result.json`、失败记录和实际输入片段清单共同核查遗漏，不以缺失记录填充成功结果。Ottawa 的阶次分析必须保留编码器测得的局部转速和轴相位，不能用十秒平均转速代替。
+
+### 全量运行后的独立一致性核查
+
+[固定提交 `c2144d2` 的 MATLAB 运行](https://github.com/collab-wq/Paper1/actions/runs/43720147268)实际通过 69 项原自适应确定性检查及 Ottawa 编码器阶次检查，四套数据预检、各一段试运行、八个恒速/变速数据作业和 53 个 XJTU 分片均成功。四套源文件分别为 CWRU 12、Paderborn 18、Ottawa 6、XJTU 5024；CWRU 12 份 SHA 与固定 `manifests/cwru_sources.csv` 再核对全部一致，Paderborn RAR 下载采用脚本固定 SHA，XJTU ZIP Range 下载逐 CSV 验 CRC 并记 SHA。Ottawa 六份双通道 MAT 在独立发布运行中重复下载，SHA 与正式运行的 `DATASET_MANIFEST.csv` 六项逐一匹配；上升沿按 1024 脉冲/转得出约 612–1539 rpm 的升/降/先升后降轨迹，与记录工况方向相符。
+
+原汇总作业已成功生成 `REAL_DATA_FULL_RESULTS.csv` 等 8 张原始表，日志给出 10,486 结果、8,670 个有效选择、1,816 个 `NO_VALID_R`、10,486 输入片段、失败 0、四套数据 `unaccounted=0`。随后仅趋势图环节因 Ottawa 末端滑动窗口起点在 CSV 中写作 `1015809.0`、旧脚本调用 `int('1015809.0')` 而失败；原始 MATLAB 结果及 Artifact 均完整。修复样本序号整数值解析后，[独立审计和发布运行 `43746468737`](https://github.com/collab-wq/Paper1/actions/runs/43746468737)从**同一次**完整运行的 Artifact 读取数据，不重新计算 WVD。`scripts/audit_full_outputs.py` 比较 10,486 个预定的 `(数据集, 文件, 起点)` 键，阻止重复或漏段，逐行核对九个 R × BPFO/BPFI/BSF 候选、有效条件、最大 J 与同分优先小 R、源文件 SHA 长度及每段输入 SHA；检查结果：10,486/10,486、失败 0、输入 10,486、来源 5060。相同审计在本地仓库重跑也通过；四张统计 CSV 本地重算与云端发布版逐字节一致。
+
+| 核查项 | 结果 | 证据及处理 |
+| --- | --- | --- |
+| 数学模型与核心代码 | 通过 | `dual_detector_abs_multiband.m`、`run_adaptive_candidates.m`、`evaluate_band_count.m`、`select_optimal_band_count.m` 与正式 `main` 无差异；新增 Ottawa 阶次评价仅处理 WVD 活动曲线。 |
+| 来源、通道与工况 | 通过并保留来源限制 | CWRU DE 与 MAT RPM；Paderborn `vibration_1` 与机械量；Ottawa Channel_1/2；XJTU 第一列水平振动与 2100/2250/2400 rpm 标称工况。SHA/CRC、片段位置见两张 manifest。 |
+| 全部计划窗口和候选 | 通过 | `COVERAGE.csv` 的 36、36、366、10048 行全部到齐，`FAILED_SEGMENTS.csv` 仅表头，所有结果均有九个候选与输入片段。 |
+| 标签隔离与诊断解释 | 检测通过、性能有限 | 标签不进入选带或 MATLAB 评分；仅 `scripts/summarize_full_results.py` 和 `scripts/analyze_full_results.py` 事后按文件名核对。CWRU 36/36 一致，但 Ottawa 外圈仅 52/183、XJTU 内圈晚期比例低，不能以高选中 J 代替真实类别识别。 |
+| 图像与数值重现 | 通过 | 四张八联图及 12 张趋势图来自上述运行；16 PNG 均约 300 dpi，有对应可打开 PDF。逐张缩略检查所有趋势图，并放大检查四张八联图和内外圈代表趋势图：标题、坐标、图例、理论线可读，未见裁切或遮挡。 |
+
+全部 16 PNG 与 PDF 在 `figures/full-real/`；完整生成文件、Ottawa 编码器速度轨迹 CSV、源输入片段与逐段日志分别见[审计发布 Artifact](https://github.com/collab-wq/Paper1/actions/runs/43746468737/artifacts/14174343297)和[MATLAB 原运行 Artifacts](https://github.com/collab-wq/Paper1/actions/runs/43720147268)，保留 90 天。早中晚 XJTU 图按快照编号位置预定，未按效果挑图；仓库四张八联代表图是预先规定的四套数据试运行窗口，XJTU 早期图实际选中 BSF，因此没有用它宣称 BPFO 检出。
+
+**未解决的证据限制：** Paderborn KA04 第 2、3 条全文件栅格异常的发布方原因仍未知，局部窗口核查约 64 kHz；XJTU 只知最终损伤类型与标称转速，缺少每分钟独立损伤标签或实测 RPM；Ottawa 的 16 kHz WVD 仅保留 8 kHz 以下主共振区，原始高频成分未纳入检测。Ottawa 文件来自 Mendeley 公共对象 UUID，已核对六个文件名、MAT 内容和重复 SHA，但云端无法独立取得版本 1 页逐文件 UUID 清单，故不能声称完成版本号逐文件对照。本轮未使用健康记录，不能估计特异度；XJTU 两个窗口的最优 R 经常不同，不能把每分钟快照压成单一 R。上述限制不以改阈值或挑选有利片段消除。
