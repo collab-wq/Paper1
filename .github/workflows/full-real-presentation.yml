@@ -1,0 +1,94 @@
+name: Paper1 full real results presentation
+on:
+  push:
+    branches: [experiment/full-real-bearing-validation]
+    paths:
+      - '.github/workflows/full-real-presentation.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  audit-and-present:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43720147268
+          github-token: ${{ github.token }}
+          name: full-real-summary
+          path: results/summary
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43720147268
+          github-token: ${{ github.token }}
+          name: trial-cwru
+          path: staging/cwru
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43720147268
+          github-token: ${{ github.token }}
+          name: trial-paderborn
+          path: staging/paderborn
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43720147268
+          github-token: ${{ github.token }}
+          name: trial-ottawa
+          path: staging/ottawa
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43720147268
+          github-token: ${{ github.token }}
+          name: trial-xjtu
+          path: staging/xjtu
+      - name: Reacquire and verify Ottawa encoder records
+        run: bash scripts/download_ottawa.sh
+      - name: Audit coverage and build physical trends
+        run: |
+          python -m pip install --quiet numpy scipy matplotlib
+          python scripts/audit_full_outputs.py --root results/summary
+          python scripts/analyze_full_results.py --root results/summary
+          python scripts/export_ottawa_encoder_traces.py
+          python scripts/plot_full_trends.py
+      - name: Stage representative figures and trend figures
+        run: |
+          mkdir -p figures/full-real
+          for dataset in cwru paderborn ottawa xjtu; do
+            png=$(find "staging/$dataset" -name paper_figure.png -print -quit)
+            test -n "$png"
+            pdf="${png%.png}.pdf"
+            test -s "$pdf"
+            cp "$png" "figures/full-real/$dataset-representative.png"
+            cp "$pdf" "figures/full-real/$dataset-representative.pdf"
+          done
+          cp results/summary/xjtu-*-lifetime.png figures/full-real/
+          cp results/summary/xjtu-*-lifetime.pdf figures/full-real/
+          cp results/summary/ottawa-*-trend.png figures/full-real/
+          cp results/summary/ottawa-*-trend.pdf figures/full-real/
+          test "$(find figures/full-real -name '*.png' | wc -l)" -eq 16
+          test "$(find figures/full-real -name '*.pdf' | wc -l)" -eq 16
+      - name: Commit presentation figures and statistics
+        run: |
+          for file in REAL_DATA_FULL_RESULTS.csv DATASET_MANIFEST.csv SEGMENT_MANIFEST.csv SELECTED_SEGMENT_RESULTS.csv XJTU_LIFETIME_SUMMARY.csv OTTAWA_ORDER_TRACKING.csv COVERAGE.csv FAILED_SEGMENTS.csv; do
+            cp "results/summary/$file" "$file"
+          done
+          cp results/summary/FULL_STATISTICS.csv .
+          cp results/summary/XJTU_PAIR_STABILITY.csv .
+          cp results/summary/POSTHOC_TARGET_EVIDENCE.csv .
+          cp results/summary/POSTHOC_TARGET_STATISTICS.csv .
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add *.csv figures/full-real
+          git commit -m 'Publish audited full-data figures and statistics [skip ci]'
+          git push origin HEAD:experiment/full-real-bearing-validation
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-real-refined-summary
+          path: |
+            results/summary/
+            figures/full-real/
+          retention-days: 90
