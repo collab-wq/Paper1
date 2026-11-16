@@ -30,19 +30,25 @@ for R=2:4
     fusedDb=10*log10(s.fused_power/(median(s.fused_power(back))+eps)+eps);
     h1=plot(s.axis,rawDb,'Color',[.42 .42 .42],'LineWidth',.9); hold on;
     h2=plot(s.axis,fusedDb,'b','LineWidth',1.0);
-    h3=xline(target,'r--',sprintf('Theoretical %s',summary.target_hypothesis), ...
-        'LabelVerticalAlignment','top','LabelHorizontalAlignment','left');
+    h3=xline(target,'r--','LineWidth',0.9);
     if isfinite(peak)
         [~,idx]=min(abs(s.axis-peak));
         h4=plot(s.axis(idx),fusedDb(idx),'bo','MarkerFaceColor','b', ...
             'MarkerSize',6);
-        legend([h1 h2 h3 h4],{'Original','Fused','Theoretical target','Located peak'}, ...
-            'Location','northeastoutside','FontSize',8);
+        legend([h1 h2 h3 h4],{'Original','Fused', ...
+            ['Theoretical ' summary.target_hypothesis],'Located peak'}, ...
+            'Location','southeast','FontSize',8);
     else
-        legend([h1 h2 h3],{'Original','Fused','Theoretical target'}, ...
-            'Location','northeastoutside','FontSize',8);
+        legend([h1 h2 h3],{'Original','Fused', ...
+            ['Theoretical ' summary.target_hypothesis]}, ...
+            'Location','southeast','FontSize',8);
     end
     xlim([0 upper]);
+    shown=s.axis>0 & s.axis<=upper;
+    visible=[rawDb(shown);fusedDb(shown)];
+    visible=sort(visible(isfinite(visible)));
+    lower=visible(max(1,ceil(0.02*numel(visible))));
+    ylim([lower-5 visible(end)+10]);
     title(sprintf('R=%d | %s | J=%.3g | %s',R,summary.target_hypothesis, ...
         c.J,c.reason),'Interpreter','none');
     xlabel(axisLabel); ylabel('Periodic power / median (dB)');

@@ -637,9 +637,9 @@ if ~isempty(evidence)
     drawnow;
     evidenceLegend.Units='normalized';
     plotPosition=ax.Position;
-    evidenceLegend.Position=[plotPosition(1)+0.65*plotPosition(3), ...
+    evidenceLegend.Position=[plotPosition(1)+0.60*plotPosition(3), ...
         plotPosition(2)+0.035*plotPosition(4), ...
-        0.31*plotPosition(3),0.14*plotPosition(4)];
+        0.38*plotPosition(3),0.19*plotPosition(4)];
 end
 exportgraphics(fig,fullfile(outdir,'paper_figure.png'),'Resolution',300);
 exportgraphics(fig,fullfile(outdir,'paper_figure.pdf'),'ContentType','vector');
