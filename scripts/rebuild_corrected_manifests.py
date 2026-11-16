@@ -18,6 +18,15 @@ for path in sorted((root/'input_segments').rglob('metadata.json')):
     else:
         segments[key]=dict(m,metadata_path=str(path))
 assert len(segments)==10486,len(segments)
+results=list((root/'adaptive-band-selection').rglob('result.json'))
+assert len(results)==10492,len(results)
+for path in results:
+    assert (path.parent/'experiment.log').is_file(),('missing MATLAB log',path)
+    relative=path.parent.relative_to(root/'adaptive-band-selection')
+    assert (root/'input_segments'/relative/'wvd_input.mat').is_file(),('missing MATLAB input',path)
+    assert (root/'input_segments'/relative/'metadata.json').is_file(),('missing input metadata',path)
+failures=list((root/'failures').glob('*.json'))
+assert not failures,('recorded MATLAB segment failures',len(failures))
 segment_rows=list(segments.values())
 fields=list(dict.fromkeys(k for row in segment_rows for k in row))
 write('SEGMENT_MANIFEST.csv',segment_rows,fields)
@@ -40,4 +49,6 @@ sources=list({(r['dataset'],r['record'],r['sha256']):r for r in sources}.values(
 assert len(sources)==5060,len(sources)
 assert all(len(r['sha256'])==64 for r in sources)
 write('DATASET_MANIFEST.csv',sources,['dataset','record','source_url','sha256','bytes'])
-print(json.dumps({'input_segments':len(segments),'source_records':len(sources)}))
+print(json.dumps({'input_segments':len(segments),'source_records':len(sources),
+                  'result_json':len(results),'matlab_logs':len(results),
+                  'input_mat_files':len(results),'recorded_failures':len(failures)}))
