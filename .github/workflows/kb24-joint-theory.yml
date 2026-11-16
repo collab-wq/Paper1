@@ -1,0 +1,38 @@
+name: KB24 independent targets joint theory presentation
+on:
+  push:
+    branches: [experiment/full-real-bpfo-bpfi-line-validation]
+    paths:
+      - '.github/workflows/kb24-joint-theory.yml'
+      - 'scripts/plot_kb24_joint_theory.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  present:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43875075318
+          github-token: ${{ github.token }}
+          name: corrected-full-paderborn-all
+          path: staging/paderborn
+      - run: |
+          python -m pip install --quiet numpy matplotlib
+          python scripts/plot_kb24_joint_theory.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kb24-joint-theory-figures
+          path: figures/full-real/kb24-*joint-theory.*
+      - name: Publish figures
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add figures/full-real/kb24-*joint-theory.*
+          git commit -m 'Publish KB24 dual-theory figures [skip ci]'
+          git push origin HEAD:experiment/full-real-bpfo-bpfi-line-validation
