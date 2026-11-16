@@ -1,0 +1,224 @@
+name: Paper1 corrected target full execution
+on:
+  push:
+    branches: [experiment/full-real-bpfo-bpfi-line-validation]
+    paths:
+      - '.github/workflows/full-real-bpfo-bpfi-execution.yml'
+      - 'scripts/download_cwru.sh'
+      - 'scripts/download_paderborn.sh'
+      - 'scripts/download_ottawa.sh'
+      - 'scripts/download_xjtu.py'
+      - 'scripts/preflight_data.py'
+      - 'matlab/verify_adaptive_band_selection.m'
+      - 'matlab/verify_ottawa_order.m'
+      - 'main_Paper1.m'
+      - 'run_adaptive_order_candidates.m'
+      - 'fault_evidence_order.m'
+      - 'estimate_encoder_phase.m'
+      - 'matlab/run_*_batch.m'
+      - 'scripts/check_trial.py'
+      - 'scripts/summarize_full_results.py'
+      - 'scripts/plot_full_trends.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: write
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); verify_abs_support_multiband; verify_target_informed_selection; verify_ottawa_order"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-full-real-self-check
+          path: results/adaptive-self-check/
+  data-preflight:
+    needs: self-check
+    strategy:
+      fail-fast: false
+      matrix:
+        dataset: [cwru, paderborn, ottawa, xjtu]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive reader
+        if: matrix.dataset == 'paderborn'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq unar
+      - name: Inspect XJTU central directory
+        if: matrix.dataset == 'xjtu'
+        run: |
+          mkdir -p results/preflight/xjtu
+          for bearing in Bearing1_2 Bearing1_3 Bearing2_1 Bearing2_2 Bearing3_1 Bearing3_4; do
+            python scripts/download_xjtu.py --bearing "$bearing" | tee -a results/preflight/xjtu/directory.log
+          done
+      - name: Download specified records
+        if: matrix.dataset != 'xjtu'
+        run: |
+          case '${{ matrix.dataset }}' in
+            cwru) bash scripts/download_cwru.sh ;;
+            paderborn) bash scripts/download_paderborn.sh ;;
+            ottawa) bash scripts/download_ottawa.sh ;;
+          esac
+      - name: Inspect MAT metadata and channels
+        if: matrix.dataset != 'xjtu'
+        run: |
+          python -m pip install --quiet scipy numpy
+          python scripts/preflight_data.py '${{ matrix.dataset }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-preflight-${{ matrix.dataset }}
+          path: |
+            results/preflight/${{ matrix.dataset }}/
+            input/${{ matrix.dataset }}/source_manifest.csv
+          if-no-files-found: warn
+  trial:
+    needs: data-preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        dataset: [cwru, paderborn, ottawa, xjtu]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive reader
+        if: matrix.dataset == 'paderborn'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq unar
+      - name: Download trial source
+        run: |
+          case '${{ matrix.dataset }}' in
+            cwru) bash scripts/download_cwru.sh ;;
+            paderborn) bash scripts/download_paderborn.sh ;;
+            ottawa) bash scripts/download_ottawa.sh ;;
+            xjtu) python scripts/download_xjtu.py --bearing Bearing1_2 --snapshot 1 --fetch ;;
+          esac
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run one adaptive real-data segment
+        uses: matlab-actions/run-command@v3
+        with:
+          command: >-
+            addpath('matlab');
+            if strcmp('${{ matrix.dataset }}','cwru'),
+              main_Paper1('cwru','input/cwru/105.mat',1,'auto','BPFI',true,'inner');
+            elseif strcmp('${{ matrix.dataset }}','paderborn'),
+              main_Paper1('paderborn','input/paderborn/KA04/N15_M07_F10_KA04_1.mat',64001,'auto','BPFO',true,'outer');
+            elseif strcmp('${{ matrix.dataset }}','ottawa'),
+              main_Paper1('ottawa','input/ottawa/I-A-2.mat',1,'auto','BPFI',true,'inner');
+            else,
+              main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_2/1.csv',4097,'auto','BPFO',true,'outer');
+            end
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-trial-${{ matrix.dataset }}
+          path: |
+            results/adaptive-band-selection/
+            results/input_segments/
+          retention-days: 90
+          if-no-files-found: warn
+  plan-xjtu:
+    needs: trial
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: plan
+        run: echo "matrix=$(python scripts/plan_xjtu_shards.py)" >> "$GITHUB_OUTPUT"
+  full-constant:
+    needs: trial
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - {dataset: cwru, record: all}
+          - {dataset: paderborn, record: all}
+          - {dataset: ottawa, record: I-A-2}
+          - {dataset: ottawa, record: I-B-2}
+          - {dataset: ottawa, record: I-C-2}
+          - {dataset: ottawa, record: O-A-2}
+          - {dataset: ottawa, record: O-B-2}
+          - {dataset: ottawa, record: O-C-2}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive reader
+        if: matrix.dataset == 'paderborn'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq unar
+      - name: Download and verify source files
+        run: |
+          case '${{ matrix.dataset }}' in
+            cwru) bash scripts/download_cwru.sh ;;
+            paderborn) bash scripts/download_paderborn.sh ;;
+            ottawa) OTTAWA_RECORD='${{ matrix.record }}' bash scripts/download_ottawa.sh ;;
+          esac
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run full adaptive analysis
+        uses: matlab-actions/run-command@v3
+        with:
+          command: >-
+            addpath('matlab');
+            if strcmp('${{ matrix.dataset }}','cwru'), run_cwru_full_batch;
+            elseif strcmp('${{ matrix.dataset }}','paderborn'), run_paderborn_full_batch;
+            else, run_ottawa_batch('${{ matrix.record }}'); end
+      - name: Preserve source manifest
+        if: always()
+        run: |
+          mkdir -p results/source
+          cp input/${{ matrix.dataset }}/source_manifest.csv results/source/${{ matrix.dataset }}-${{ matrix.record }}.csv || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-full-${{ matrix.dataset }}-${{ matrix.record }}
+          path: results/
+          retention-days: 90
+          if-no-files-found: warn
+  full-xjtu:
+    needs: [trial, plan-xjtu]
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.plan-xjtu.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch and CRC-check every snapshot in this shard
+        run: >-
+          python scripts/download_xjtu.py --bearing '${{ matrix.bearing }}'
+          --start-number ${{ matrix.start }} --end-number ${{ matrix.end }} --fetch
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run both windows of every snapshot
+        uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); run_xjtu_lifetime_batch('${{ matrix.bearing }}')"
+      - name: Preserve per-file source hashes
+        if: always()
+        run: |
+          mkdir -p results/source
+          find input/xjtu-sy -name provenance.json -exec cp '{}' 'results/source/xjtu-${{ matrix.bearing }}-${{ matrix.start }}-${{ matrix.end }}.json' \;
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-full-xjtu-${{ matrix.bearing }}-${{ matrix.start }}-${{ matrix.end }}
+          path: results/
+          retention-days: 90
+          if-no-files-found: warn
