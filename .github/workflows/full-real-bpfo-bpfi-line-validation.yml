@@ -20,7 +20,7 @@ jobs:
           products: Signal_Processing_Toolbox
       - uses: matlab-actions/run-command@v3
         with:
-          command: "addpath('matlab'); verify_adaptive_band_selection; verify_target_informed_selection; verify_ottawa_order"
+          command: "addpath('matlab'); verify_abs_support_multiband; verify_target_informed_selection; verify_ottawa_order"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
