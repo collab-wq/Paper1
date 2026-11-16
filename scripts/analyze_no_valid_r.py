@@ -186,8 +186,14 @@ for b in ('Bearing1_2','Bearing1_3','Bearing2_1','Bearing2_2','Bearing3_1','Bear
     bb=[g for g in groups if g['dataset']=='xjtu' and g['bearing']==b]
     lines.append(f"- {b}：早/中/晚有效率 "+' / '.join(f"{g['valid_rate']:.1%}" for g in bb)+'；R2/R3/R4 次数依次为 '+ '、'.join(f"{g['R2_count']}/{g['R3_count']}/{g['R4_count']}" for g in bb)+'。')
 lines += ['', 'KB24 复合损伤须分别读取汇总表中的 BPFO 和 BPFI 行；两种理论频率的误差与有效率不能混算。Ottawa 的六条记录及升/降/先升后降模式行分别列出，但模式合计包含内、外圈两种故障，解读时须结合目标类型。', '',
+          '## 主要发现', '',
+          '- CWRU 的 36 次目标评价全部有效，28 次选 R=2、8 次选 R=3；这个已知目标结果不等同于未知类别分类准确率。',
+          '- Paderborn KA04 与 KA16 各 6/6 有效；KB24 的 BPFO 为 6/6、BPFI 仅 2/6，后者四个无效结果均须保留。三种 KI 内圈轴承各 4/6 有效。',
+          '- Ottawa 内圈三工况合计 175/183 有效，外圈三工况为 86/183；外圈无效主要为阶次定位误差超出实际累计轴转数给出的分辨尺度。不能把两种故障类型混合后的转速模式行解释为纯转速效应。',
+          '- XJTU-SY 六轴承合计早/中/晚有效率为 33.9% / 37.5% / 45.7%，选中候选的误差中位数为 2.927 / 2.068 / 1.365 Hz；总体有改善，但 Bearing3_4 中期低于早期，Bearing2_2 后期略低于中期，趋势并不对所有轴承单调。Bearing1_2、Bearing1_3 的外圈后期达到 100% 有效；内圈 Bearing2_1 与 Bearing3_4 后期仍分别只有 25.6% 和 28.6%。', '',
           '## 限制','',
-          '本分析依赖本轮保存的 MATLAB 候选与输入元数据，不把 `NO_VALID_R` 等同于无故障或算法故障。局部峰不足、频率分辨率与物理弱证据不能仅凭一个失败代码进一步区分；无法从现有字段证实的原因保持程序级描述。', '']
+          '本分析依赖本轮保存的 MATLAB 候选与输入元数据，不把 `NO_VALID_R` 等同于无故障或算法故障。局部峰不足、频率分辨率与物理弱证据不能仅凭一个失败代码进一步区分；无法从现有字段证实的原因保持程序级描述。', '',
+          '上一阶段尚未完成的逐窗口 2×、3× 谐波统计不能由当前全量 JSON 重建：`main_Paper1.m` 仅在 `exportFigure=true` 的代表窗口保存三个 R 的完整周期谱 CSV。多数全量窗口只有基频目标峰、对比度、J 和候选失败原因。本任务禁止重跑 WVD，因此不填写缺失的全量谐波数字。KB24 现有两套目标图分别标注 BPFO 与 BPFI，尚无同一图上同时标注两组理论线的合并图。', '']
 (a.out/'NO_VALID_R_ANALYSIS.md').write_text('\n'.join(lines))
 print(json.dumps({'windows':len(window_keys),'evaluations':len(data),
                   'NO_VALID_R':sum(not d['winner'] for d in data),
