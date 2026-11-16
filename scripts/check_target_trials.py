@@ -11,7 +11,7 @@ if dataset == 'cwru':
     files = sorted(root.glob('cwru-*/target-*/result.json'))
 else:
     files = sorted((root / dataset).rglob('result.json'))
-expected = 3 if dataset == 'paderborn' else 1
+expected = 3 if dataset == 'paderborn' else (2 if dataset == 'xjtu' else 1)
 assert len(files) == expected, (dataset, files)
 for path in files:
     data = json.loads(path.read_text())

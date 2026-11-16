@@ -59,7 +59,9 @@ jobs:
             cwru) bash scripts/download_cwru.sh ;;
             paderborn) bash scripts/download_paderborn.sh ;;
             ottawa) bash scripts/download_ottawa.sh ;;
-            xjtu) python scripts/download_xjtu.py --bearing Bearing1_2 --snapshot 1 --fetch ;;
+            xjtu)
+              python scripts/download_xjtu.py --bearing Bearing1_2 --snapshot 1 --fetch
+              python scripts/download_xjtu.py --bearing Bearing1_2 --snapshot 123 --fetch ;;
           esac
       - uses: matlab-actions/setup-matlab@v3
         with:
@@ -79,6 +81,7 @@ jobs:
               main_Paper1('ottawa','input/ottawa/I-A-2.mat',1,'auto','BPFI');
             else,
               main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_2/1.csv',4097,'auto','BPFO');
+              main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_2/123.csv',4097,'auto','BPFO');
             end
       - name: Verify three candidates and target independence
         run: python scripts/check_target_trials.py '${{ matrix.dataset }}'
