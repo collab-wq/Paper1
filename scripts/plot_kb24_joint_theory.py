@@ -52,6 +52,9 @@ for (name,start),both in sorted(groups.items()):
                             color=color,ha='center',va='top',fontsize=7,rotation=90,
                             bbox={'facecolor':'white','alpha':.8,'edgecolor':'none','pad':.5})
         ax.set_xlim(0,min(upper,axis[-1]));ax.set_ylabel('Power / background median (dB)')
+        visible=np.r_[raw_db[shown],fused_db[shown]]
+        visible=visible[np.isfinite(visible)]
+        ax.set_ylim(np.percentile(visible,2)-5,np.max(visible)+8)
         title=(f'{h} target · independently selected R={r} · J={obj["selected_score"]:.3f}'
                if obj['status']=='SELECTED' else
                f'{h} target · NO_VALID_R · R=2 spectrum shown only')
