@@ -17,7 +17,7 @@ on:
       - 'scripts/check_target_trials.py'
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   self-check:
     runs-on: ubuntu-latest
@@ -93,3 +93,27 @@ jobs:
             results/adaptive-band-selection/
             results/input_segments/
           if-no-files-found: warn
+  publish-figures:
+    needs: representative
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: target-informed-*
+          path: staging
+      - name: Inspect and stage representative PNG/PDF
+        run: |
+          python -m pip install --quiet pillow
+          python scripts/publish_target_figures.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: target-informed-figures
+          path: figures/target-informed/
+      - name: Commit representative figures to experiment branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add figures/target-informed
+          git commit -m 'Publish target-informed representative figures [skip ci]'
+          git push origin HEAD:experiment/target-informed-R-selection
