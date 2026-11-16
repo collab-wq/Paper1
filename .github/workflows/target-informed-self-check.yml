@@ -9,8 +9,10 @@ on:
       - 'run_adaptive_order_candidates.m'
       - 'select_optimal_band_count.m'
       - 'write_*candidate_csv.m'
+      - 'plot_target_candidate_spectra.m'
       - 'matlab/verify_target_informed_selection.m'
       - 'matlab/run_*_batch.m'
+      - 'matlab/bearing_target_metadata.m'
       - 'scripts/check_target_trials.py'
   workflow_dispatch:
 permissions:

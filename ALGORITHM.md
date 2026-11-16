@@ -85,6 +85,6 @@ Ottawa 原始 Channel_1 为 200 kHz 加速度振动，Channel_2 为编码器。�
 
 ## 目标约束实验分支
 
-`experiment/target-informed-R-selection` 从全量验证分支建立。每个自动 R 调用只接收一个目标 BPFO 或 BPFI，分别计算三个 $R$ 的周期谱峰、对比度、$Q_e$、$Q_C$ 和 $J$；`select_optimal_band_count` 对混合故障假设直接报错。KB24 同一片段执行 BPFO、BPFI 两次，输出目录分别以 `target-bpfo`、`target-bpfi` 结尾。各目标只生成三条候选记录，并在 JSON、CSV 中保存 `target_fault_type`、`target_hypothesis` 和 `selected_R`。代表图同时绘制红色理论谐波线和蓝色实际定位峰。检测器、WVD、频带选择、掩膜及分辨率定义未改。
+`experiment/target-informed-R-selection` 从全量验证分支建立。每个自动 R 调用只接收一个目标 BPFO 或 BPFI，分别计算三个 $R$ 的周期谱峰、对比度、$Q_e$、$Q_C$ 和 $J$；`select_optimal_band_count` 对混合故障假设直接报错。KB24 同一片段执行 BPFO、BPFI 两次，输出目录分别以 `target-bpfo`、`target-bpfi` 结尾。各目标只生成三条候选记录，并在 JSON、CSV 中保存 `target_fault_type`、`target_hypothesis` 和 `selected_R`。代表图同时绘制红色理论谐波线和蓝色实际定位峰；另存三个 R 各自的原始/融合周期功率谱 CSV 与三联图，均标注同一理论目标。检测器、WVD、频带选择、掩膜及分辨率定义未改。
 
 `.github/workflows/target-informed-self-check.yml` 先运行确定性 MATLAB 自检；通过后仅执行四套数据的代表片段。本分支不执行全部 10,486 段；旧分支结果与统计表保持历史原状。

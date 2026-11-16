@@ -1,12 +1,13 @@
-function [summary,selectedMaps]=run_adaptive_candidates(Wfull,ffull,tw,p,mode,fs,rpm,N,choice,requestedHypothesis)
+function [summary,selectedMaps,spectra]=run_adaptive_candidates(Wfull,ffull,tw,p,mode,fs,rpm,N,choice,requestedHypothesis)
 % Evaluate R=2,3,4 for one target supplied by experiment metadata.
 hypotheses=bearing_hypotheses(mode,rpm,requestedHypothesis);
-assert(numel(hypotheses)==1 && ismember(hypotheses.name,{'BPFO','BPFI'}), ...
+assert(numel(hypotheses)==1 && any(strcmp(hypotheses.name,{'BPFO','BPFI'})), ...
     'Adaptive R selection requires one BPFO or BPFI target');
 rankedCenters=find_resonance_candidates(Wfull,ffull,choice.smoothHz, ...
     choice.lowerHz,choice.upperHz,choice.minDistanceHz);
 candidates=struct([]);
 selectedMaps=[];
+spectra=cell(1,3);
 for R=2:4
     if numel(rankedCenters)<R
         for h=1:numel(hypotheses)
@@ -20,8 +21,13 @@ for R=2:4
     centers=sort(rankedCenters(1:R));
     bands=[centers-choice.halfwidthHz,centers+choice.halfwidthHz];
     try
-        [records,~]=run_one_band_count(Wfull,ffull,tw,p,mode,fs,N, ...
+        [records,trialMaps]=run_one_band_count(Wfull,ffull,tw,p,mode,fs,N, ...
             bands,choice,hypotheses);
+        dt=median(diff(tw));
+        [grid,rawPower]=periodogram_curve(trialMaps.raw_activity,dt);
+        [~,fusedPower]=periodogram_curve(trialMaps.fused_activity,dt);
+        spectra{R-1}=struct('axis',grid,'original_power',rawPower, ...
+            'fused_power',fusedPower);
         for h=1:numel(records)
             candidates=append_record(candidates,records(h));
         end

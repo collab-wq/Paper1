@@ -5,8 +5,8 @@ groups=containers.Map({'Bearing1_2','Bearing1_3','Bearing2_1', ...
     {'35Hz12kN','35Hz12kN','37.5Hz11kN', ...
     '37.5Hz11kN','40Hz10kN','40Hz10kN'});
 assert(isKey(groups,bearing),'Unknown XJTU bearing');
-if ismember(bearing,{'Bearing2_1','Bearing3_4'}), target='BPFI';
-else, target='BPFO'; end
+targets=bearing_target_metadata('xjtu',bearing);
+target=targets{1};
 folder=fullfile('input','xjtu-sy',groups(bearing),bearing);
 files=dir(fullfile(folder,'*.csv'));
 indices=nan(1,numel(files));

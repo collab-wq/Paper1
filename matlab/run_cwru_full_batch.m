@@ -2,8 +2,8 @@ function run_cwru_full_batch
 % Targets are explicit experiment metadata, independent of detection.
 ids=[105 130 144 156 106 131 145 158 107 132 146 159];
 for id=ids
-    if ismember(id,[105 106 107]), target='BPFI';
-    else, target='BPFO'; end
+    targets=bearing_target_metadata('cwru',id);
+    target=targets{1};
     file=fullfile('input','cwru',sprintf('%d.mat',id));
     d=load(file); key=sprintf('X%d',id);
     assert(isfield(d,[key '_DE_time']) && isfield(d,[key 'RPM']));

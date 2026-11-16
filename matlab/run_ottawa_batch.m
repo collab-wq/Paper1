@@ -3,9 +3,8 @@ function run_ottawa_batch(recordName)
 if nargin<1, names={'I-A-2','I-B-2','I-C-2','O-A-2','O-B-2','O-C-2'};
 else, names={char(recordName)}; end
 for i=1:numel(names)
-    if startsWith(names{i},'I-'), target='BPFI';
-    elseif startsWith(names{i},'O-'), target='BPFO';
-    else, error('Unmapped Ottawa record'); end
+    targets=bearing_target_metadata('ottawa',names{i});
+    target=targets{1};
     file=fullfile('input','ottawa',[names{i} '.mat']);
     info=whos('-file',file,'Channel_1');
     assert(numel(info)==1 && prod(info.size)==2000000);

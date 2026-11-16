@@ -7,9 +7,7 @@ for b=1:numel(ids)
             sprintf('N15_M07_F10_%s_%d.mat',ids{b},rec));
         assert(isfile(file),'Missing Paderborn record %s',file);
         for first=[64001 128001]
-            if strcmp(ids{b},'KB24'), targets={'BPFO','BPFI'};
-            elseif startsWith(ids{b},'KA'), targets={'BPFO'};
-            else, targets={'BPFI'}; end
+            targets=bearing_target_metadata('paderborn',ids{b});
             for h=1:numel(targets)
                 target=targets{h};
                 try

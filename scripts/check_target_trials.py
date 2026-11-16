@@ -6,8 +6,11 @@ import sys
 from pathlib import Path
 
 dataset = sys.argv[1]
-root = Path('results/adaptive-band-selection') / dataset
-files = sorted(root.rglob('result.json'))
+root = Path('results/adaptive-band-selection')
+if dataset == 'cwru':
+    files = sorted(root.glob('cwru-*/target-*/result.json'))
+else:
+    files = sorted((root / dataset).rglob('result.json'))
 expected = 3 if dataset == 'paderborn' else 1
 assert len(files) == expected, (dataset, files)
 for path in files:
@@ -29,6 +32,13 @@ for path in files:
         assert (path.parent / 'paper_figure.png').is_file()
         assert (path.parent / 'paper_figure.pdf').is_file()
     print(path, data['status'], target, data['selected_R'])
+    for row in rows:
+        peak = row.get('target_peak_order', row.get('target_peak_hz'))
+        error = row.get('error_order', row.get('error_hz'))
+        print('R', row['R'], 'theory', row.get('theoretical_order', row.get('theoretical_hz')),
+              'peak', peak, 'error', error, 'contrast', row['contrast_linear'],
+              'Qe', row['location_confidence'], 'Qc', row['contrast_utility'],
+              'J', row['J'], 'valid', row['valid'], 'reason', row['reason'])
 if dataset == 'paderborn':
     kb = [p for p in files if 'KB24' in str(p)]
     assert len(kb) == 2 and kb[0].parent != kb[1].parent

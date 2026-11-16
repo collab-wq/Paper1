@@ -17,7 +17,7 @@ assert((isAuto && strcmpi(char(numBands),'auto')) || ...
     (~isAuto && isscalar(numBands) && ismember(numBands,[2 3 4])), ...
     'numBands must be auto, 2, 3, or 4');
 if isAuto && ~strcmp(mode,'synthetic')
-    assert(ismember(upper(char(requestedHypothesis)),{'BPFO','BPFI'}), ...
+    assert(any(strcmpi(char(requestedHypothesis),{'BPFO','BPFI'})), ...
         'Real-data auto R requires an explicit BPFO or BPFI target from experiment metadata');
     requestedHypothesis=upper(char(requestedHypothesis));
 end
@@ -155,7 +155,7 @@ if strcmp(mode,'ottawa')
     choice=struct('smoothHz',100,'lowerHz',1000, ...
         'upperHz',min(7500,0.9*fs/2),'minDistanceHz',500, ...
         'halfwidthHz',200,'cropMarginHz',600);
-    [result,maps]=run_adaptive_order_candidates(W,f,tw,p,fs, ...
+    [result,maps,spectra]=run_adaptive_order_candidates(W,f,tw,p,fs, ...
         phaseRev,choice,numel(x),requestedHypothesis);
     result.file=dataFile; result.start_sample=startIndex;
     result.end_sample=startIndex+segmentRawN-1;
@@ -165,6 +165,9 @@ if strcmp(mode,'ottawa')
     result.shaft_revolutions=phaseRev(end)-phaseRev(1);
     result.physical_resolution_order=1/result.shaft_revolutions;
     result.parameters=p;
+    if exportFigure
+        plot_target_candidate_spectra(spectra,result,outdir,'order');
+    end
     if strcmp(result.status,'SELECTED')
         chosen=result.candidates(result.selected_candidate_index);
         result.selected_bands_hz=chosen.bands_hz;
@@ -200,13 +203,16 @@ if isempty(p.bands)
         choice=struct('smoothHz',smoothHz,'lowerHz',lowerHz, ...
             'upperHz',upperHz,'minDistanceHz',minBandDistanceHz, ...
             'halfwidthHz',bandHalfwidthHz,'cropMarginHz',600);
-        [result,maps]=run_adaptive_candidates(W,f,tw,p,mode,fs,rpm, ...
+        [result,maps,spectra]=run_adaptive_candidates(W,f,tw,p,mode,fs,rpm, ...
             numel(x),choice,requestedHypothesis);
         result.file=dataFile;
         result.start_sample=startIndex;
         result.end_sample=startIndex+numel(x)-1;
         result.rpm=rpm;
         result.parameters=p;
+        if exportFigure
+            plot_target_candidate_spectra(spectra,result,outdir,'Hz');
+        end
         if strcmp(mode,'cwru'), result.channel=de;
         else
             result.channel=channel;
