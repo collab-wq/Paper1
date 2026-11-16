@@ -1,0 +1,87 @@
+name: Target-informed R selection self-check
+on:
+  push:
+    branches: [experiment/target-informed-R-selection]
+    paths:
+      - '.github/workflows/target-informed-self-check.yml'
+      - 'main_Paper1.m'
+      - 'run_adaptive_candidates.m'
+      - 'run_adaptive_order_candidates.m'
+      - 'select_optimal_band_count.m'
+      - 'write_*candidate_csv.m'
+      - 'matlab/verify_target_informed_selection.m'
+      - 'matlab/run_*_batch.m'
+      - 'scripts/check_target_trials.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); verify_target_informed_selection; verify_ottawa_order"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: target-informed-self-check
+          path: results/target-informed-self-check/
+  representative:
+    needs: self-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        dataset: [cwru, paderborn, ottawa, xjtu]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install archive reader
+        if: matrix.dataset == 'paderborn'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq unar
+      - name: Download representative source
+        env:
+          PADERBORN_BEARINGS: KA04 KB24
+          OTTAWA_RECORD: I-A-2
+        run: |
+          case '${{ matrix.dataset }}' in
+            cwru) bash scripts/download_cwru.sh ;;
+            paderborn) bash scripts/download_paderborn.sh ;;
+            ottawa) bash scripts/download_ottawa.sh ;;
+            xjtu) python scripts/download_xjtu.py --bearing Bearing1_2 --snapshot 1 --fetch ;;
+          esac
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - name: Run representative target-constrained analysis
+        uses: matlab-actions/run-command@v3
+        with:
+          command: >-
+            addpath('matlab');
+            if strcmp('${{ matrix.dataset }}','cwru'),
+              main_Paper1('cwru','input/cwru/105.mat',1,'auto','BPFI');
+            elseif strcmp('${{ matrix.dataset }}','paderborn'),
+              main_Paper1('paderborn','input/paderborn/KA04/N15_M07_F10_KA04_1.mat',64001,'auto','BPFO');
+              main_Paper1('paderborn','input/paderborn/KB24/N15_M07_F10_KB24_1.mat',64001,'auto','BPFO');
+              main_Paper1('paderborn','input/paderborn/KB24/N15_M07_F10_KB24_1.mat',64001,'auto','BPFI');
+            elseif strcmp('${{ matrix.dataset }}','ottawa'),
+              main_Paper1('ottawa','input/ottawa/I-A-2.mat',1,'auto','BPFI');
+            else,
+              main_Paper1('xjtu','input/xjtu-sy/35Hz12kN/Bearing1_2/1.csv',4097,'auto','BPFO');
+            end
+      - name: Verify three candidates and target independence
+        run: python scripts/check_target_trials.py '${{ matrix.dataset }}'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: target-informed-${{ matrix.dataset }}
+          path: |
+            results/adaptive-band-selection/
+            results/input_segments/
+          if-no-files-found: warn

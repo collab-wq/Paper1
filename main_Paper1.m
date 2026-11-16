@@ -10,12 +10,17 @@ if nargin<4 || isempty(numBands)
     if strcmp(mode,'synthetic'), numBands=2;
     else, numBands='auto'; end
 end
-if nargin<5, requestedHypothesis='unknown'; end
+if nargin<5, requestedHypothesis=''; end
 if nargin<6, exportFigure=true; end
 isAuto=ischar(numBands) || isstring(numBands);
 assert((isAuto && strcmpi(char(numBands),'auto')) || ...
     (~isAuto && isscalar(numBands) && ismember(numBands,[2 3 4])), ...
     'numBands must be auto, 2, 3, or 4');
+if isAuto && ~strcmp(mode,'synthetic')
+    assert(ismember(upper(char(requestedHypothesis)),{'BPFO','BPFI'}), ...
+        'Real-data auto R requires an explicit BPFO or BPFI target from experiment metadata');
+    requestedHypothesis=upper(char(requestedHypothesis));
+end
 if strcmp(mode,'synthetic')
     assert(~isAuto && numBands==2,'Synthetic truth has exactly two physical resonance bands');
     rng(7); fs=4000; t=(0:round(0.27*fs)-1)'/fs;
@@ -124,6 +129,7 @@ end
 if isAuto
     outdir=fullfile('results','adaptive-band-selection', ...
         outdir(numel('results')+2:end));
+    outdir=fullfile(outdir,['target-' lower(requestedHypothesis)]);
 else
     outdir=fullfile('results','absolute-support-multiband', ...
         outdir(numel('results')+2:end),sprintf('R%d',numBands));
@@ -150,7 +156,7 @@ if strcmp(mode,'ottawa')
         'upperHz',min(7500,0.9*fs/2),'minDistanceHz',500, ...
         'halfwidthHz',200,'cropMarginHz',600);
     [result,maps]=run_adaptive_order_candidates(W,f,tw,p,fs, ...
-        phaseRev,choice,numel(x));
+        phaseRev,choice,numel(x),requestedHypothesis);
     result.file=dataFile; result.start_sample=startIndex;
     result.end_sample=startIndex+segmentRawN-1;
     result.original_fs_hz=fsOriginal;
@@ -165,7 +171,8 @@ if strcmp(mode,'ottawa')
         evidence=struct('raw',maps.raw_activity,'fused',maps.fused_activity, ...
             'time',tw,'phase_revolutions',phaseRev,'unit','order', ...
             'expected_order',chosen.theoretical_order, ...
-            'fault_name',chosen.hypothesis);
+            'fault_name',chosen.hypothesis, ...
+            'target_peak',chosen.target_peak_order);
         plotLimits=[max(0,min(chosen.bands_hz(:,1))-600), ...
             min(fs/2,max(chosen.bands_hz(:,2))+600)];
         if exportFigure
@@ -214,7 +221,8 @@ if isempty(p.bands)
             evidence=struct('raw',maps.raw_activity, ...
                 'fused',maps.fused_activity,'dt',dt, ...
                 'expected_hz',chosen.theoretical_hz, ...
-                'fault_name',chosen.hypothesis);
+                'fault_name',chosen.hypothesis, ...
+                'target_peak',chosen.target_peak_hz);
             plotLimits=[max(0,min(chosen.bands_hz(:,1))-600), ...
                 min(fs/2,max(chosen.bands_hz(:,2))+600)];
             if exportFigure
@@ -554,6 +562,9 @@ if ~isempty(evidence)
     fusedDb=10*log10(pFused/(median(pFused(back))+eps)+eps);
     h1=plot(freq,rawDb,'Color',[.42 .42 .42],'LineWidth',0.9); hold on;
     h2=plot(freq,fusedDb,'b','LineWidth',1.0);
+    [~,peakIndex]=min(abs(freq-evidence.target_peak));
+    h3=plot(freq(peakIndex),fusedDb(peakIndex),'bo', ...
+        'MarkerFaceColor','b','MarkerSize',6);
     if strcmp(evidence.fault_name,'healthy')
         markerName='BPFO (reference)';
     else
@@ -581,7 +592,7 @@ if ~isempty(evidence)
         'VariableNames',{seriesName,'original_db','fused_db'});
     writetable(plotSeries,fullfile(outdir,'periodicity_plot.csv'));
     title('(h) Fault repetition evidence');
-    evidenceLegend=legend([h1 h2],{'Original','Fused'}, ...
+    evidenceLegend=legend([h1 h2 h3],{'Original','Fused','Located peak'}, ...
         'Location','southeast','FontSize',9);
     xlabel(axisName);
 else

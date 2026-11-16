@@ -1,18 +1,19 @@
-function [summary,winner]=run_adaptive_order_candidates(W,f,tw,p,fs,phaseRev,choice,N)
+function [summary,winner]=run_adaptive_order_candidates(W,f,tw,p,fs,phaseRev,choice,N,targetHypothesis)
 % Ottawa: same detector/mask, but evaluate activity in shaft-order coordinates.
 assert(numel(tw)==numel(phaseRev));
+assert(ismember(char(targetHypothesis),{'BPFO','BPFI'}), ...
+    'Ottawa adaptive R selection requires one BPFO or BPFI target');
 ranked=find_resonance_candidates(W,f,choice.smoothHz, ...
     choice.lowerHz,choice.upperHz,choice.minDistanceHz);
-hypotheses=struct('name',{'BPFO','BPFI','BSF'}, ...
-    'order',{3.57,5.43,0.5*(38.52/7.94)*(1-(7.94/38.52)^2)});
+hypotheses=struct('name',char(targetHypothesis),'order',NaN);
+if strcmp(hypotheses.name,'BPFO'), hypotheses.order=3.57;
+else, hypotheses.order=5.43; end
 candidates=struct([]); winner=[]; cache=cell(1,3);
 for R=2:4
     if numel(ranked)<R
-        for h=1:3
-            c=empty_score(R,hypotheses(h));
-            c.reason='INSUFFICIENT_BANDS';
-            candidates=append(candidates,c);
-        end
+        c=empty_score(R,hypotheses);
+        c.reason='INSUFFICIENT_BANDS';
+        candidates=append(candidates,c);
         continue;
     end
     centers=sort(ranked(1:R));
@@ -20,20 +21,18 @@ for R=2:4
     try
         [maps,scoreRows]=one_count(W,f,tw,p,fs,phaseRev,bands,hypotheses);
         cache{R-1}=maps;
-        for h=1:3
-            candidates=append(candidates,scoreRows(h));
-        end
+        candidates=append(candidates,scoreRows);
     catch err
-        for h=1:3
-            c=empty_score(R,hypotheses(h));
-            c.bands_hz=bands;
-            c.reason=['R_EXECUTION_FAILED: ' regexprep(err.message,'[\r\n]+',' ')];
-            candidates=append(candidates,c);
-        end
+        c=empty_score(R,hypotheses);
+        c.bands_hz=bands;
+        c.reason=['R_EXECUTION_FAILED: ' regexprep(err.message,'[\r\n]+',' ')];
+        candidates=append(candidates,c);
     end
 end
 [best,rank,status]=select_optimal_band_count(candidates);
 summary=struct('status',status,'mode','ottawa','evidence_unit','order', ...
+    'target_fault_type',char(targetHypothesis), ...
+    'target_hypothesis',char(targetHypothesis), ...
     'fs_hz',fs,'signal_samples',N,'observation_s',N/fs, ...
     'available_resonance_peaks_hz',ranked, ...
     'candidates',candidates,'ranked_candidate_indices',rank, ...
@@ -61,13 +60,12 @@ Wout=W.*M;
 selected=band_union(f,bands); df=median(diff(f));
 raw=sum(max(W(selected,:),0),1)*df;
 fused=sum(max(Wout(selected,:),0),1)*df;
-rows=repmat(empty_score(size(bands,1),hypotheses(1)),1,3);
-for h=1:3
-    [rawPeak,rawContrast]=fault_evidence_order(raw,tw,phaseRev,hypotheses(h).order);
-    [peak,contrast,delta]=fault_evidence_order(fused,tw,phaseRev,hypotheses(h).order);
-    score=evaluate_band_count(size(bands,1),hypotheses(h).name, ...
-        hypotheses(h).order,peak,contrast,delta,1);
-    item=empty_score(size(bands,1),hypotheses(h));
+rows=empty_score(size(bands,1),hypotheses);
+    [rawPeak,rawContrast]=fault_evidence_order(raw,tw,phaseRev,hypotheses.order);
+    [peak,contrast,delta]=fault_evidence_order(fused,tw,phaseRev,hypotheses.order);
+    score=evaluate_band_count(size(bands,1),hypotheses.name, ...
+        hypotheses.order,peak,contrast,delta,1);
+    item=empty_score(size(bands,1),hypotheses);
     item.target_peak_order=peak;
     item.raw_target_peak_order=rawPeak;
     item.raw_target_contrast=rawContrast;
@@ -83,8 +81,7 @@ for h=1:3
     item.time_endpoint_count=numel(peakIdx);
     item.time_pair_count=pairCount;
     item.retained_pixel_fraction=nnz(M)/numel(M);
-    rows(h)=item;
-end
+    rows=item;
 maps=struct('W',W,'f',f,'Sf',Sf,'St',St,'Mf',Mf,'Mt',Mt,'M',M, ...
     'Wout',Wout,'fusion',fusion,'Etime',Etime,'raw_activity',raw, ...
     'fused_activity',fused,'bands_hz',bands);

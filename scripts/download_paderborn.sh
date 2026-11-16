@@ -12,6 +12,12 @@ declare -A expected_sha=(
   [KI17]=d80dbdb612cfaeb7ba1ffe6387c52c4d938084b2466e55d96a5528aff4d8b084
 )
 bearing_list=(KA04 KA16 KB24 KI21 KI17 KI04)
+if [[ -n "${PADERBORN_BEARINGS:-}" ]]; then
+  read -r -a bearing_list <<< "$PADERBORN_BEARINGS"
+  for bearing in "${bearing_list[@]}"; do
+    [[ -n "${expected_sha[$bearing]:-}" ]] || { echo "Unsupported Paderborn bearing: $bearing" >&2; exit 1; }
+  done
+fi
 printf 'record,source_url,sha256,bytes\n' > "$root/source_manifest.csv"
 printf 'bearing,source_url,archive_sha256,archive_bytes\n' > "$root/archive_manifest.csv"
 for bearing in "${bearing_list[@]}"; do
