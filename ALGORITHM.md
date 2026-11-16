@@ -51,13 +51,13 @@ run_xjtu_batch
 
 ## 正式主支：自适应选带流程
 
-`main_Paper1(mode,dataFile,startIndex)` 对真实数据默认使用自适应模式；第四参数可填 `2`、`3`、`4`，保留固定 R 的历史分析入口。第五参数可明确指定 `BPFO`、`BPFI` 或 `BSF`；缺省 `unknown` 同时评估全部物理假设。合成信号仍仅允许固定 $R=2$，不参加正式自适应决策。新的确定性自检入口为 `addpath('matlab'); verify_adaptive_band_selection`。
+在本分支中，真实数据自动模式须显式调用 `main_Paper1(mode,dataFile,startIndex,'auto',targetHypothesis)`，其中 `targetHypothesis` 是实验元数据给出的 `BPFO` 或 `BPFI`；缺省、`unknown` 和 `BSF` 均被拒绝。第四参数取 `2`、`3`、`4` 的固定 R 历史入口仍保留。合成信号仅允许固定 $R=2$。本分支自检入口为 `addpath('matlab'); verify_target_informed_selection; verify_ottawa_order`。以下旧版遍历多假设的伪代码仅反映 `main` 和历史全量实验分支，本分支改为单一目标。
 
 ```matlab
 % 实际代码分布于 main_Paper1、run_adaptive_candidates 等函数。
 [W,f,tw] = wvd(hilbert(x),fs); % 每段仅一次
 ranked = find_resonance_candidates(W,f,...); % 幅值峰强度降序
-H = bearing_hypotheses(mode,rpm,requestedHypothesis);
+H = bearing_hypotheses(mode,rpm,targetHypothesis); % 单一目标
 for R = 2:4
     if numel(ranked) < R
         % 记录 INSUFFICIENT_BANDS，不影响其他 R
@@ -66,14 +66,12 @@ for R = 2:4
     bands = sort(ranked(1:R));
     % 对该 R 调用原双方向检测器；遍历所有 nchoosek(R,2) 个带对。
     % 原有掩膜、Wout、周期谱及 fault_evidence 均保持定义。
-    for h = H
-        % 使用 fs/N、线性功率对比度和 METHOD.md 式 (12)–(13) 评分。
-    end
+    % 仅依据 H(1) 的目标频率，使用 fs/N 和式 (12)–(13) 评分。
 end
-% 有效候选按 J 降序，精确同分时 R 升序；无有效项返回 NO_VALID_R。
+% 同一目标的三个有效候选按 J 降序；精确同分 R 升序。
 ```
 
-结果写入 `results/adaptive-band-selection/<dataset>/<segment>/result.json` 与 `candidates.csv`。每个 $(R,h)$ 包括频带、三点计数、目标峰、对比度、物理分辨尺度、误差、$Q_e$、$Q_C$、$J$、有效状态及原因；胜出方案另存八联图和抽样 MAT 网格。诊断活动量仍采用旧版正值 WVD 积分，区别于检测阶段的绝对值局部均值支撑。
+本分支结果写入 `results/adaptive-band-selection/<dataset>/<segment>/target-<bpfo|bpfi>/result.json` 与 `candidates.csv`。每个 $R$ 包括频带、三点计数、目标峰、对比度、物理分辨尺度、误差、$Q_e$、$Q_C$、$J$、有效状态及原因；胜出方案另存八联图和抽样 MAT 网格。诊断活动量仍采用旧版正值 WVD 积分，区别于检测阶段的绝对值局部均值支撑。
 
 当前仅自动运行 `.github/workflows/adaptive-self-check.yml` 的确定性 MATLAB 检查。`.github/workflows/future-real-validation.yml` 只允许手动触发，尚未执行新的自适应真实数据实验。上文提及的旧工作流及 `run_audit` 为历史复现说明，旧工作流已从正式主支清理，历史数值见 `MULTIBAND_RESULTS.csv` 和 `archive/previous-algorithm/AUDIT_RESULTS.csv`。
 
@@ -84,3 +82,9 @@ end
 Ottawa 原始 Channel_1 为 200 kHz 加速度振动，Channel_2 为编码器。对每个 65536 点原始窗口，统一用 `resample(...,2,25)` 抗混叠转换到 16 kHz 后计算 WVD。预检中六份信号的强谱峰均在约 4.8–5.1 kHz，低于 8 kHz 新奈奎斯特频率；原始与实际输入窗口均保存并分别计算 SHA-256。编码器在原始 200 kHz 下检上升沿，以 1024 脉冲/转恢复转数及局部 RPM。WVD 检测仍在时间域完成；只将原始和融合后的 WVD 频带活动曲线按轴转数插值到均匀角度网格，计算目标阶次谱峰与 0.5–12 阶、排除目标窗口后的背景中位数之比。物理阶次分辨尺度为窗口内累计转数的倒数，定位可信度、对比度饱和函数、有效性约束及同分规则与恒速算法同形。平均 RPM 不参与阶次定位。
 
 四类入口为 `run_cwru_full_batch`、`run_paderborn_full_batch`、`run_ottawa_batch` 与 `run_xjtu_lifetime_batch`；它们仅组织原始文件及固定片段，均调用 `main_Paper1`。`full-real-bearing-validation.yml` 先执行 `verify_adaptive_band_selection` 与 `verify_ottawa_order`，再完成来源预检和单段试运行，最后拆分全量任务。每个实际 WVD 输入在 `results/input_segments/` 留存样本、来源、通道、采样率、窗口位置和 SHA-256；自动选择失败时也留存。大型输入和完整实验产物只上传 Actions Artifact。
+
+## 目标约束实验分支
+
+`experiment/target-informed-R-selection` 从全量验证分支建立。每个自动 R 调用只接收一个目标 BPFO 或 BPFI，分别计算三个 $R$ 的周期谱峰、对比度、$Q_e$、$Q_C$ 和 $J$；`select_optimal_band_count` 对混合故障假设直接报错。KB24 同一片段执行 BPFO、BPFI 两次，输出目录分别以 `target-bpfo`、`target-bpfi` 结尾。各目标只生成三条候选记录，并在 JSON、CSV 中保存 `target_fault_type`、`target_hypothesis` 和 `selected_R`。代表图同时绘制红色理论谐波线和蓝色实际定位峰。检测器、WVD、频带选择、掩膜及分辨率定义未改。
+
+`.github/workflows/target-informed-self-check.yml` 先运行确定性 MATLAB 自检；通过后仅执行四套数据的代表片段。本分支不执行全部 10,486 段；旧分支结果与统计表保持历史原状。

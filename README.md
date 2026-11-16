@@ -1,18 +1,17 @@
 # Paper1：原始 WVD 双方向三点检测与自适应共振带
 
-本仓库研究原始振动信号 Wigner–Ville 分布中的交叉项抑制。正式方法先对局部**有符号均值**取绝对值作支撑，沿频率与时间分别执行端点—中点—端点检测，按几何平均融合掩膜重构 WVD。真实记录默认在嵌套的 $R=2,3,4$ 个共振带中，以故障周期峰定位精度和饱和型对比度评分选择最佳候选；得分不满足有效条件时返回 `NO_VALID_R`。合成原型保持两条物理共振带。
+本仓库研究原始振动信号 Wigner–Ville 分布中的交叉项抑制。正式方法先对局部**有符号均值**取绝对值作支撑，沿频率与时间分别执行端点—中点—端点检测，按几何平均融合掩膜重构 WVD。本实验分支在已知目标故障类型条件下，独立比较嵌套的 $R=2,3,4$ 个共振带，以目标周期峰定位精度和饱和型对比度评分选择 R；不跨故障类型排序。得分不满足有效条件时返回 `NO_VALID_R`。合成原型保持两条物理共振带。
 
 ## 入口
 
 ```matlab
 addpath('matlab')
-verify_adaptive_band_selection                    % 确定性自检
-main_Paper1('cwru','input/cwru/130.mat',1)         % 默认自适应 R，未知故障假设
+verify_target_informed_selection                  % 本分支确定性自检
 main_Paper1('cwru','input/cwru/130.mat',1,3)       % 手动固定 R=3
-main_Paper1('cwru','input/cwru/130.mat',1,'auto','BPFO') % 明确待检假设
+main_Paper1('cwru','input/cwru/130.mat',1,'auto','BPFO') % 实验元数据指定外圈目标
 ```
 
-原始数据由 `scripts/` 下的下载程序按需取得，不提交仓库。正式自检见 [GitHub Actions](.github/workflows/adaptive-self-check.yml)；本分支的四套真实数据正式运行见[全量工作流](.github/workflows/full-real-bearing-validation.yml)和[审计发布工作流](.github/workflows/full-real-presentation.yml)。历史固定 R 的实验与本轮自适应实验分开解释。
+原始数据由 `scripts/` 下的下载程序按需取得，不提交仓库。本分支的[目标约束自检及少量代表片段工作流](.github/workflows/target-informed-self-check.yml)先运行确定性 MATLAB 测试，成功后才运行代表性真实数据。[历史全量工作流](.github/workflows/full-real-bearing-validation.yml)和[历史发布工作流](.github/workflows/full-real-presentation.yml)属于未知假设混排分支，其 10,486 段数值不视为本分支结果。
 
 ## 文档与历史资料
 

@@ -21,7 +21,7 @@ for path in files:
         saved = list(csv.DictReader(stream))
     assert len(saved) == 3
     assert all(row['target_hypothesis'] == target for row in saved)
-    assert all(row['target_fault_type'] == target for row in saved)
+    assert all(row['target_fault_type'] == ('outer' if target == 'BPFO' else 'inner') for row in saved)
     selected = [row for row in saved if row['selected'] == '1']
     assert len(selected) == (data['status'] == 'SELECTED')
     if selected:
