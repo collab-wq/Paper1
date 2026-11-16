@@ -21,7 +21,7 @@ jobs:
       - name: Gate real-data execution on deterministic checks
         uses: matlab-actions/run-command@v3
         with:
-          command: "addpath('matlab'); verify_adaptive_band_selection"
+          command: "addpath('matlab'); verify_adaptive_band_selection; verify_target_informed_selection; verify_ottawa_order"
   real-data-validation:
     needs: self-check
     runs-on: ubuntu-latest

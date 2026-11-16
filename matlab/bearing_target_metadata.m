@@ -1,4 +1,4 @@
-function targets=bearing_target_metadata(dataset,record)
+function [targets,faultType]=bearing_target_metadata(dataset,record)
 % Audited experiment metadata. Only batch organizers call this function.
 switch char(dataset)
     case 'cwru'
@@ -26,4 +26,7 @@ switch char(dataset)
     otherwise
         error('Unmapped dataset');
 end
+faultType='outer';
+if isequal(targets,{'BPFI'}), faultType='inner';
+elseif numel(targets)==2, faultType='composite'; end
 end

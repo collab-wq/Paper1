@@ -6,7 +6,8 @@
 
 ```matlab
 addpath('matlab')
-verify_target_informed_selection                  % 本分支确定性自检
+verify_adaptive_band_selection                    % 检测器及基础评分自检
+verify_target_informed_selection                  % 本分支目标约束自检
 main_Paper1('cwru','input/cwru/130.mat',1,3)       % 手动固定 R=3
 main_Paper1('cwru','input/cwru/130.mat',1,'auto','BPFO') % 实验元数据指定外圈目标
 ```
@@ -17,7 +18,7 @@ main_Paper1('cwru','input/cwru/130.mat',1,'auto','BPFO') % 实验元数据指定
 
 - [METHOD.md](METHOD.md)：数学模型、饱和型评分和有效性规则。
 - [ALGORITHM.md](ALGORITHM.md)：离散流程、接口与复现。
-- [RESULTS.md](RESULTS.md)：历史实验与本分支四套真实数据的详细记录。
+- [RESULTS.md](RESULTS.md)：历史全量实验，以及本目标约束分支的小样本自检记录。
 - [FINAL_RESULTS.md](FINAL_RESULTS.md)：历史结论与全量自适应验证总结。
 - [AUDIT_REPORT.md](AUDIT_REPORT.md)：历史核查、全量来源与逐窗一致性核查。
 - [REAL_DATA_FULL_RESULTS.csv](REAL_DATA_FULL_RESULTS.csv)：10,486 个真实窗口及九个候选的完整数值。

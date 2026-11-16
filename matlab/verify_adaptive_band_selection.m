@@ -90,15 +90,18 @@ lowContrast=evaluate_band_count(2,'BPFO',100,100,1,fs,N);
 largeError=evaluate_band_count(2,'BPFO',100,111,10,fs,N);
 check('contrast at most one invalid',~lowContrast.valid);
 check('error beyond physical resolution invalid',~largeError.valid);
-[ix,rank,status]=select_optimal_band_count([b a]);
+[ix,rank,status]=select_optimal_band_count([b a ...
+    evaluate_band_count(4,'BPFO',100,111,10,fs,N)]);
 check('score ranking and index',ix==2 && rank(1)==2 && strcmp(status,'SELECTED'));
 tied=[evaluate_band_count(4,'BPFO',100,100,10,fs,N), ...
-    evaluate_band_count(2,'BPFO',100,100,10,fs,N)];
+    evaluate_band_count(2,'BPFO',100,100,10,fs,N), ...
+    evaluate_band_count(3,'BPFO',100,100,10,fs,N)];
 [ix,~,~]=select_optimal_band_count(tied);
 check('exact tie chooses smaller R',ix==2);
 [ix,~,status]=select_optimal_band_count([ ...
     evaluate_band_count(2,'BPFO',100,100,1,fs,N), ...
-    evaluate_band_count(3,'BPFO',100,111,10,fs,N)]);
+    evaluate_band_count(3,'BPFO',100,111,10,fs,N), ...
+    evaluate_band_count(4,'BPFO',100,111,10,fs,N)]);
 check('all invalid yields NO_VALID_R',isempty(ix) && strcmp(status,'NO_VALID_R'));
 
 known=bearing_hypotheses('cwru',1800,'BPFO');
@@ -121,10 +124,11 @@ check('failure isolated per R',contains(source,'catch err') && contains(source,'
 choice=struct('smoothHz',30,'lowerHz',100,'upperHz',1200, ...
     'minDistanceHz',200,'halfwidthHz',40,'cropMarginHz',100);
 p=parameters([]); p.freqThr=0.10; p.timeThr=0.08; p.activityThr=0.005;
-[trial,trialMaps]=run_adaptive_candidates(W,f,tw,p,'cwru',2000,1800,200,choice,'unknown');
-check('all nine R-h records retained',numel(trial.candidates)==9);
+[trial,trialMaps]=run_adaptive_candidates(W,f,tw,p,'cwru',2000,1800,200,choice,'BPFO');
+check('three target-only R records retained',numel(trial.candidates)==3);
 check('all three R values evaluated',isequal(unique([trial.candidates.R]),[2 3 4]));
-check('all three fault hypotheses evaluated',numel(unique({trial.candidates.hypothesis}))==3);
+check('only target hypothesis evaluated', ...
+    numel(unique({trial.candidates.hypothesis}))==1);
 check('valid selected reconstruction or explicit no-valid status', ...
     (strcmp(trial.status,'SELECTED') && isequal(size(trialMaps.Wout),size(trialMaps.M))) || ...
     (strcmp(trial.status,'NO_VALID_R') && isempty(trialMaps)));

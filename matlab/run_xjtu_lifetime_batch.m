@@ -5,7 +5,7 @@ groups=containers.Map({'Bearing1_2','Bearing1_3','Bearing2_1', ...
     {'35Hz12kN','35Hz12kN','37.5Hz11kN', ...
     '37.5Hz11kN','40Hz10kN','40Hz10kN'});
 assert(isKey(groups,bearing),'Unknown XJTU bearing');
-targets=bearing_target_metadata('xjtu',bearing);
+[targets,faultType]=bearing_target_metadata('xjtu',bearing);
 target=targets{1};
 folder=fullfile('input','xjtu-sy',groups(bearing),bearing);
 files=dir(fullfile(folder,'*.csv'));
@@ -24,7 +24,8 @@ for k=1:numel(files)
     file=fullfile(folder,files(k).name);
     for first=[4097 16385]
         try
-            main_Paper1('xjtu',file,first,'auto',target,ismember(indices(k),positions));
+            main_Paper1('xjtu',file,first,'auto',target, ...
+                ismember(indices(k),positions),faultType);
         catch err
             record_segment_failure('xjtu',file,first,err,target);
         end

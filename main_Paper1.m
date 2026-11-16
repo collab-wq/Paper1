@@ -1,4 +1,4 @@
-function result = main_Paper1(mode, dataFile, startIndex, numBands, requestedHypothesis, exportFigure)
+function result = main_Paper1(mode, dataFile, startIndex, numBands, requestedHypothesis, exportFigure, targetFaultType)
 % Paper1: direct-WVD dual-direction endpoint/midpoint/endpoint detector.
 % Usage: main_Paper1('synthetic'), main_Paper1('cwru',file), or
 %        main_Paper1('paderborn',file,startIndex)
@@ -12,6 +12,7 @@ if nargin<4 || isempty(numBands)
 end
 if nargin<5, requestedHypothesis=''; end
 if nargin<6, exportFigure=true; end
+if nargin<7, targetFaultType=''; end
 isAuto=ischar(numBands) || isstring(numBands);
 assert((isAuto && strcmpi(char(numBands),'auto')) || ...
     (~isAuto && isscalar(numBands) && ismember(numBands,[2 3 4])), ...
@@ -20,6 +21,14 @@ if isAuto && ~strcmp(mode,'synthetic')
     assert(any(strcmpi(char(requestedHypothesis),{'BPFO','BPFI'})), ...
         'Real-data auto R requires an explicit BPFO or BPFI target from experiment metadata');
     requestedHypothesis=upper(char(requestedHypothesis));
+    if isempty(targetFaultType)
+        if strcmp(requestedHypothesis,'BPFO'), targetFaultType='outer';
+        else, targetFaultType='inner'; end
+    end
+    assert(any(strcmp(char(targetFaultType),{'outer','inner','composite'})), ...
+        'Target fault type must be outer, inner, or composite');
+    if strcmp(targetFaultType,'outer'), assert(strcmp(requestedHypothesis,'BPFO')); end
+    if strcmp(targetFaultType,'inner'), assert(strcmp(requestedHypothesis,'BPFI')); end
 end
 if strcmp(mode,'synthetic')
     assert(~isAuto && numBands==2,'Synthetic truth has exactly two physical resonance bands');
@@ -158,6 +167,7 @@ if strcmp(mode,'ottawa')
     [result,maps,spectra]=run_adaptive_order_candidates(W,f,tw,p,fs, ...
         phaseRev,choice,numel(x),requestedHypothesis);
     result.file=dataFile; result.start_sample=startIndex;
+    result.target_fault_type=char(targetFaultType);
     result.end_sample=startIndex+segmentRawN-1;
     result.original_fs_hz=fsOriginal;
     result.channel='Channel_1'; result.encoder_channel='Channel_2';
@@ -206,6 +216,7 @@ if isempty(p.bands)
         [result,maps,spectra]=run_adaptive_candidates(W,f,tw,p,mode,fs,rpm, ...
             numel(x),choice,requestedHypothesis);
         result.file=dataFile;
+        result.target_fault_type=char(targetFaultType);
         result.start_sample=startIndex;
         result.end_sample=startIndex+numel(x)-1;
         result.rpm=rpm;

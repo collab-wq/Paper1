@@ -51,7 +51,7 @@ run_xjtu_batch
 
 ## 正式主支：自适应选带流程
 
-在本分支中，真实数据自动模式须显式调用 `main_Paper1(mode,dataFile,startIndex,'auto',targetHypothesis)`，其中 `targetHypothesis` 是实验元数据给出的 `BPFO` 或 `BPFI`；缺省、`unknown` 和 `BSF` 均被拒绝。第四参数取 `2`、`3`、`4` 的固定 R 历史入口仍保留。合成信号仅允许固定 $R=2$。本分支自检入口为 `addpath('matlab'); verify_target_informed_selection; verify_ottawa_order`。以下旧版遍历多假设的伪代码仅反映 `main` 和历史全量实验分支，本分支改为单一目标。
+在本分支中，真实数据自动模式须显式调用 `main_Paper1(mode,dataFile,startIndex,'auto',targetHypothesis)`，其中 `targetHypothesis` 是实验元数据给出的 `BPFO` 或 `BPFI`；缺省、`unknown` 和 `BSF` 均被拒绝。第四参数取 `2`、`3`、`4` 的固定 R 历史入口仍保留。合成信号仅允许固定 $R=2$。本分支自检入口为 `addpath('matlab'); verify_adaptive_band_selection; verify_target_informed_selection; verify_ottawa_order`。下列伪代码描述本分支的单一目标流程。
 
 ```matlab
 % 实际代码分布于 main_Paper1、run_adaptive_candidates 等函数。
@@ -85,6 +85,6 @@ Ottawa 原始 Channel_1 为 200 kHz 加速度振动，Channel_2 为编码器。�
 
 ## 目标约束实验分支
 
-`experiment/target-informed-R-selection` 从全量验证分支建立。每个自动 R 调用只接收一个目标 BPFO 或 BPFI，分别计算三个 $R$ 的周期谱峰、对比度、$Q_e$、$Q_C$ 和 $J$；`select_optimal_band_count` 对混合故障假设直接报错。KB24 同一片段执行 BPFO、BPFI 两次，输出目录分别以 `target-bpfo`、`target-bpfi` 结尾。各目标只生成三条候选记录，并在 JSON、CSV 中保存 `target_fault_type`、`target_hypothesis` 和 `selected_R`。代表图同时绘制红色理论谐波线和蓝色实际定位峰；另存三个 R 各自的原始/融合周期功率谱 CSV 与三联图，均标注同一理论目标。检测器、WVD、频带选择、掩膜及分辨率定义未改。
+`experiment/target-informed-R-selection` 从全量验证分支建立。四套批处理通过 `matlab/bearing_target_metadata.m` 的已核对工况表显式传入目标；核心程序不解析文件名猜测故障。每个自动 R 调用只接收一个目标 BPFO 或 BPFI，分别计算三个 $R$ 的周期谱峰、对比度、$Q_e$、$Q_C$ 和 $J$；`select_optimal_band_count` 对混合故障假设直接报错。KB24 同一片段执行 BPFO、BPFI 两次，`target_fault_type` 均为 `composite`，`target_hypothesis` 分别为 `BPFO`、`BPFI`；输出目录以 `target-bpfo`、`target-bpfi` 结尾。各目标只生成三条候选记录，并在 JSON、CSV 中保存目标元数据和 `selected_R`。代表图同时绘制红色理论谐波线和蓝色实际定位峰；另存三个 R 各自的原始/融合周期功率谱 CSV 与三联图，均标注同一理论目标。检测器、WVD、频带选择、掩膜及分辨率定义未改。
 
 `.github/workflows/target-informed-self-check.yml` 先运行确定性 MATLAB 自检；通过后仅执行四套数据的代表片段。本分支不执行全部 10,486 段；旧分支结果与统计表保持历史原状。

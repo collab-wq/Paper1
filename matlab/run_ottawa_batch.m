@@ -3,7 +3,7 @@ function run_ottawa_batch(recordName)
 if nargin<1, names={'I-A-2','I-B-2','I-C-2','O-A-2','O-B-2','O-C-2'};
 else, names={char(recordName)}; end
 for i=1:numel(names)
-    targets=bearing_target_metadata('ottawa',names{i});
+    [targets,faultType]=bearing_target_metadata('ottawa',names{i});
     target=targets{1};
     file=fullfile('input','ottawa',[names{i} '.mat']);
     info=whos('-file',file,'Channel_1');
@@ -14,7 +14,7 @@ for i=1:numel(names)
     for k=1:numel(starts)
         try
             main_Paper1('ottawa',file,starts(k),'auto',target, ...
-                ismember(k,representatives));
+                ismember(k,representatives),faultType);
         catch err
             record_segment_failure('ottawa',file,starts(k),err,target);
         end

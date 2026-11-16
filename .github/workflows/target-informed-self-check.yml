@@ -11,6 +11,7 @@ on:
       - 'write_*candidate_csv.m'
       - 'plot_target_candidate_spectra.m'
       - 'matlab/verify_target_informed_selection.m'
+      - 'matlab/verify_adaptive_band_selection.m'
       - 'matlab/run_*_batch.m'
       - 'matlab/bearing_target_metadata.m'
       - 'scripts/check_target_trials.py'
@@ -28,12 +29,14 @@ jobs:
           products: Signal_Processing_Toolbox
       - uses: matlab-actions/run-command@v3
         with:
-          command: "addpath('matlab'); verify_target_informed_selection; verify_ottawa_order"
+          command: "addpath('matlab'); verify_adaptive_band_selection; verify_target_informed_selection; verify_ottawa_order"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: target-informed-self-check
-          path: results/target-informed-self-check/
+          path: |
+            results/target-informed-self-check/
+            results/adaptive-self-check/
   representative:
     needs: self-check
     runs-on: ubuntu-latest
@@ -70,8 +73,8 @@ jobs:
               main_Paper1('cwru','input/cwru/105.mat',1,'auto','BPFI');
             elseif strcmp('${{ matrix.dataset }}','paderborn'),
               main_Paper1('paderborn','input/paderborn/KA04/N15_M07_F10_KA04_1.mat',64001,'auto','BPFO');
-              main_Paper1('paderborn','input/paderborn/KB24/N15_M07_F10_KB24_1.mat',64001,'auto','BPFO');
-              main_Paper1('paderborn','input/paderborn/KB24/N15_M07_F10_KB24_1.mat',64001,'auto','BPFI');
+              main_Paper1('paderborn','input/paderborn/KB24/N15_M07_F10_KB24_1.mat',64001,'auto','BPFO',true,'composite');
+              main_Paper1('paderborn','input/paderborn/KB24/N15_M07_F10_KB24_1.mat',64001,'auto','BPFI',true,'composite');
             elseif strcmp('${{ matrix.dataset }}','ottawa'),
               main_Paper1('ottawa','input/ottawa/I-A-2.mat',1,'auto','BPFI');
             else,
