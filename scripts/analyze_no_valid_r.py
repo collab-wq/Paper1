@@ -193,7 +193,7 @@ lines += ['', 'KB24 复合损伤须分别读取汇总表中的 BPFO 和 BPFI 行
           '- XJTU-SY 六轴承合计早/中/晚有效率为 33.9% / 37.5% / 45.7%，选中候选的误差中位数为 2.927 / 2.068 / 1.365 Hz；总体有改善，但 Bearing3_4 中期低于早期，Bearing2_2 后期略低于中期，趋势并不对所有轴承单调。Bearing1_2、Bearing1_3 的外圈后期达到 100% 有效；内圈 Bearing2_1 与 Bearing3_4 后期仍分别只有 25.6% 和 28.6%。', '',
           '## 限制','',
           '本分析依赖本轮保存的 MATLAB 候选与输入元数据，不把 `NO_VALID_R` 等同于无故障或算法故障。局部峰不足、频率分辨率与物理弱证据不能仅凭一个失败代码进一步区分；无法从现有字段证实的原因保持程序级描述。', '',
-          '上一阶段尚未完成的逐窗口 2×、3× 谐波统计不能由当前全量 JSON 重建：`main_Paper1.m` 仅在 `exportFigure=true` 的代表窗口保存三个 R 的完整周期谱 CSV。多数全量窗口只有基频目标峰、对比度、J 和候选失败原因。本任务禁止重跑 WVD，因此不填写缺失的全量谐波数字。KB24 现有两套目标图分别标注 BPFO 与 BPFI，尚无同一图上同时标注两组理论线的合并图。', '']
+          '上一阶段尚未完成的逐窗口 2×、3× 谐波统计不能由当前全量 JSON 重建：`main_Paper1.m` 仅在 `exportFigure=true` 的代表窗口保存三个 R 的完整周期谱 CSV。多数全量窗口只有基频目标峰、对比度、J 和候选失败原因。本任务禁止重跑 WVD，因此不填写缺失的全量谐波数字。KB24 的六个物理窗口已从本轮保存的周期谱生成双理论线图，BPFO 与 BPFI 仍在两个独立面板分别选 R；无有效 R 的面板明确标注 `NO_VALID_R`，仅以 R=2 谱供查看，不伪称最优输出。见 [KB24 双理论线示例](figures/full-real/kb24-N15_M07_F10_KB24_1-start64001-joint-theory.png)，其余五张在同一目录。', '']
 (a.out/'NO_VALID_R_ANALYSIS.md').write_text('\n'.join(lines))
 print(json.dumps({'windows':len(window_keys),'evaluations':len(data),
                   'NO_VALID_R':sum(not d['winner'] for d in data),
