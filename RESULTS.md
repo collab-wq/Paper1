@@ -267,3 +267,35 @@ R=3/4 增加了实际带对和三点候选，但没有形成跨数据集一致�
 ### 9.7 文件、代表图与 Artifact
 
 四张经实际视觉检查的 300 dpi 八联图（均有同名矢量 PDF）：[CWRU 105 内圈](figures/full-real/cwru-representative.png)、[Paderborn KA04 外圈](figures/full-real/paderborn-representative.png)、[Ottawa I-A-2 内圈](figures/full-real/ottawa-representative.png)、[XJTU Bearing1_2 快照 1 的早期窗口](figures/full-real/xjtu-representative.png)。最后一张按预定早期试运行规则选取，图中程序选中 BSF，**不代表真实 BPFO 已识别**；未挑选效果最好的图代替完整序列。[六张 XJTU 全寿命图](figures/full-real/xjtu-Bearing1_2-lifetime.png)与[六张 Ottawa 变速图](figures/full-real/ottawa-I-A-2-trend.png)均在 `figures/full-real/`，完整逐窗八联图与 MAT/JSON/日志在[正式运行 Artifacts](https://github.com/collab-wq/Paper1/actions/runs/43720147268)；[汇总、速度轨迹与全部论文图 Artifact](https://github.com/collab-wq/Paper1/actions/runs/43746468737/artifacts/14174343297)保留 90 天。仓库仅留轻量可审阅的表格和代表图；原始数据未提交。
+
+## 10. 已知目标故障类型约束的 R 选择：小样本自检
+
+本节属于 `experiment/target-informed-R-selection`，从第 9 节全量未知假设实验分支建立。第 9 节的 10,486 段、九候选混排统计保留为历史记录，**不得**解释为本节的新结果。本节只做确定性自检及代表片段，未重新运行全部窗口。
+
+四套数据的目标来自已核对的实验工况映射 `matlab/bearing_target_metadata.m`，由批处理显式传给 `main_Paper1`：CWRU 105/106/107 用 BPFI，其余九个指定外圈记录用 BPFO；Paderborn KA04/KA16 用 BPFO，KI21/KI17/KI04 用 BPFI，KB24 对同一片段分别用 BPFO 和 BPFI，保留 `composite` 原始损伤类型；Ottawa I-A/B/C-2 用 BPFI、O-A/B/C-2 用 BPFO；XJTU-SY Bearing1_2/1_3/2_2/3_1 用 BPFO，Bearing2_1/3_4 用 BPFI。核心检测器不从文件路径推断目标，也不借目标改变选带、WVD 或掩膜。
+
+每一目标仅保留 R=2、3、4 三条候选及其失败原因。`result.json` 与 `candidates.csv` 记录原始故障类型、当前目标、三个 R 的目标峰、误差、对比度、$Q_e$、$Q_C$、$J$、有效性和最终 R；每个可计算的 R 另存原始及融合周期功率谱 CSV。三联周期谱图用同一理论目标参考线及各自的实际定位峰，八联图保留原布局并标明选中目标的理论谐波和实际峰。
+
+本节为**已知目标类型条件下的参数选择**。不能把目标约束后的高 J 或 R 选择称为未知故障类别的自动识别，也不能与第 9 节混排选择的统计值直接合并。
+
+### 10.1 代表片段的实际 MATLAB 结果
+
+[目标约束门禁与代表运行 43831825178](https://github.com/collab-wq/Paper1/actions/runs/43831825178)仅计算七次目标评价，全部使用既定原始片段及参数。下表的对比度为选中 R 的**线性功率比**；`NO_VALID_R` 行没有可报告的选中 J。理论值与实际峰的网格误差必须结合真实观测时长解释，不能把零填充网格间距当物理分辨率。
+
+| 记录与目标 | 起始样本 | 目标理论值 | 选中 R | 实际峰 | 误差 | 对比度 | J |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| CWRU 105 / BPFI | 1 | 162.185 Hz | 3 | 161.865 Hz | 0.320 Hz | 22.23 | 0.99851 |
+| Paderborn KA04 第 1 条 / BPFO | 64001 | 76.347 Hz | 2 | 76.172 Hz | 0.175 Hz | 23.27 | 0.99994 |
+| Paderborn KB24 第 1 条 / BPFO | 64001 | 76.344 Hz | 2 | 73.242 Hz | 3.102 Hz | 3.51 | 0.53525 |
+| Paderborn KB24 同一片段 / BPFI | 64001 | 123.622 Hz | 4 | 121.094 Hz | 2.528 Hz | 3.06 | 0.48000 |
+| Ottawa I-A-2 / BPFI | 1 | 5.430 阶 | 3 | 5.414 阶 | 0.01594 阶 | 13.51 | 0.99764 |
+| XJTU-SY Bearing1_2 第 1 次快照 / BPFO | 4097 | 107.907 Hz | `NO_VALID_R` | — | — | — | — |
+| XJTU-SY Bearing1_2 第 123 次快照 / BPFO | 4097 | 107.907 Hz | 3 | 108.203 Hz | 0.296 Hz | 59.06 | 0.99888 |
+
+CWRU 105 的 R=3 与 R=4 均在对比度饱和区，J 精确相同，按规则选择较小的 R=3。KB24 BPFO 与 BPFI 使用相同原始片段，却独立选出 R=2 与 R=4；BPFI 的 R=2、3 误差均为 24.012 Hz，超过 15.625 Hz 的物理分辨尺度，不能只因对比度高于 1 就认定有效。Ottawa 直接在阶次域选 R，物理尺度取窗口累计转数的倒数。XJTU 第 1 次快照三个 R 的 BPFO 误差约 11.42–12.20 Hz，均超出 6.25 Hz 的物理尺度；第 123 次快照可选 R=3。后者 R=4 对比度虽升至 69.51，但 $Q_C$ 已饱和，定位误差比 R=3 大，故 J 较低。两次快照不能代表完整退化轨迹，本分支没有运行全寿命重算。
+
+### 10.2 图片和逐段 Artifact
+
+实际视觉检查后的八联图示例：[CWRU 105 内圈](figures/target-informed/cwru-cwru-105-target-bpfi-eight-panel.png)、[Paderborn KA04 外圈](figures/target-informed/paderborn-N15_M07_F10_KA04_1-start64001-target-bpfo-eight-panel.png)、[KB24 外圈目标](figures/target-informed/paderborn-N15_M07_F10_KB24_1-start64001-target-bpfo-eight-panel.png)、[KB24 内圈目标](figures/target-informed/paderborn-N15_M07_F10_KB24_1-start64001-target-bpfi-eight-panel.png)、[Ottawa I-A-2](figures/target-informed/ottawa-I-A-2-start1-target-bpfi-eight-panel.png)、[XJTU 第 123 次快照](figures/target-informed/xjtu-Bearing1_2-123-start4097-target-bpfo-eight-panel.png)。[XJTU 第 1 次快照三联谱](figures/target-informed/xjtu-Bearing1_2-1-start4097-target-bpfo-candidate-spectra.png)明确展示三个无效 R 的定位峰，不生成伪“最终”八联图。每图均有同名矢量 PDF；其余候选三联谱同在 `figures/target-informed/`。
+
+[自检 Artifact](https://github.com/collab-wq/Paper1/actions/runs/43831825178/artifacts/14208589135)保留 69+29 项日志与 JSON；[CWRU](https://github.com/collab-wq/Paper1/actions/runs/43831825178/artifacts/14208744392)、[Paderborn](https://github.com/collab-wq/Paper1/actions/runs/43831825178/artifacts/14209471134)、[Ottawa](https://github.com/collab-wq/Paper1/actions/runs/43831825178/artifacts/14209002877)、[XJTU-SY](https://github.com/collab-wq/Paper1/actions/runs/43831825178/artifacts/14209611698) 各自保存 `result.json`、三候选 CSV、R=2/3/4 周期谱 CSV、MATLAB 日志、WVD 输入片段和图像。[图片汇总 Artifact](https://github.com/collab-wq/Paper1/actions/runs/43831825178/artifacts/14209251536)保留全部 13 对 PNG/PDF。未运行全量数据，也未改写第 9 节历史结果。

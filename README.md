@@ -29,7 +29,7 @@ main_Paper1('cwru','input/cwru/130.mat',1,'auto','BPFO') % 实验元数据指定
 - [archive/initial-prototype/](archive/initial-prototype/)：最初 `main` 原型代码、任务书、参考论文和图片，内容未改。
 - [AGENTS.md](AGENTS.md)：项目执行与成果管理规范。
 
-`figures/` 保存历史论文图；[figures/full-real/](figures/full-real/) 保存四张新八联代表图与十二张趋势图的 PNG/PDF。`work` 与 `experiment/absolute-support-multiband` 分支继续保存方法演进记录。
+`figures/` 保存历史论文图；[figures/full-real/](figures/full-real/) 保存原未知假设实验的代表图与趋势图；[figures/target-informed/](figures/target-informed/) 保存本分支七次目标评价的六张有效八联图、七张三候选周期谱图及对应 PDF。`work` 与 `experiment/absolute-support-multiband` 分支继续保存方法演进记录。
 
 ## 全量真实数据实验分支
 
