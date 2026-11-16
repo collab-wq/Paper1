@@ -279,19 +279,24 @@ def report(samples, saturation, target_window, joint, by_config, outdir, path):
     counts=Counter(by_config[(s['id'],'dynamic',c,w)] for s in samples for c in CSATS for w in WINDOWS)
     for key in (2,3,4,'NO_VALID_R'):
         lines.append(f'| {key} | {counts[key]} |')
-    lines += ['', '窗口改变时，目标峰与对比度可能同时改变，因为背景排除范围也变；`TARGET_WINDOW_SENSITIVITY.csv` 并列保存正式动态背景和固定 ±30% 背景。联合表同样保留两种背景规则。固定背景只用于机制对照，不参与正式算法修订。', '',
+    lines += ['', '### 对基准参数的直接判断', '',
+              '- **Csat=10**：固定 ±20% 时，CWRU、KA04、XJTU 早期与后期在 5–20 全范围保持原选择（早期仍为 NO_VALID_R）。Ottawa 在 Csat=5、8 从 R=3 改选 R=2，因此 10 对这五个片段并非完全处于稳定平台；Ottawa 的 R=2 对比度接近 10，而 R=3 已饱和，阈值改变了二者效用排序。',
+              '- **±20% 窗口**：固定 Csat=10 时，CWRU、KA04、XJTU 后期在 ±5% 至 ±30% 均保持原选择；Ottawa 在 ±10%、±15% 改选 R=2；XJTU 早期仅 ±5% 出现有效 R=2。故 ±20% 对三个片段稳定，但不能称为所有代表片段均稳健。',
+              '- **联合变化**：正式背景下 180 个样本×配置中 158 个与各自基准选择相同、22 个不同；变化集中在 Ottawa、早期 XJTU，以及 CWRU 的 Csat=20 与较宽窗口组合。该计数是五个预选片段的描述，不是总体稳定率。', '',
+              '窗口改变时，目标峰与对比度可能同时改变，因为背景排除范围也变；`TARGET_WINDOW_SENSITIVITY.csv` 并列保存正式动态背景和固定 ±30% 背景。联合表同样保留两种背景规则。固定背景只用于机制对照，不参与正式算法修订。Ottawa 的固定背景对照在 Csat=10 的全部六个窗口均选 R=3，而动态背景在 ±10%、±15% 选 R=2：这两处改变由背景中位数改变而非目标峰搜索遗漏造成。', '',
               '## 早期 XJTU 的 NO_VALID_R', '']
     early=next(s for s in samples if s['id']=='xjtu-bearing1_2-1')
     for w in WINDOWS:
         rows=[score(early,r,10,w,'dynamic') for r in (2,3,4)]
         info=', '.join(f'R={v["R"]}: peak {v["target_peak"]:.3f} Hz, e {v["error"]:.3f} Hz, C {v["contrast_linear"]:.2f}, {v["invalid_reason"]}' for v in rows)
         lines.append(f'- ±{w:.0%}：{info}。')
-    lines += ['', '若宽窗口中高对比度峰仍落在物理分辨尺度之外，应解释为本片段在目标附近缺少足够准确的周期证据；若窄窗口出现有效候选，需进一步检查它是局部次峰还是物理一致的多谐波结构。此结论只针对该代表性早期窗口。', '',
+    lines += ['', '基准 ±20% 的三个 R 优先选到约 95.7–96.5 Hz 的较强邻近峰，距理论 BPFO 约 11.4–12.2 Hz，超过 6.25 Hz 物理分辨率，因此全部无效。缩至 ±5% 后，R=2 找到 108.203 Hz 的较弱局部峰（C=3.84），并通过单峰有效性门槛。**因此本片段的基准 NO_VALID_R 直接由宽窗口内邻近强峰竞争造成；不能说理论 BPFO 附近完全没有周期响应。** 然而窄窗得到的较弱基频峰，以及三谐波图中不一致的高次响应，尚不足以宣称早期故障诊断成功。此结论只针对该代表性早期窗口。', '',
               '## 多谐波理论位置与图件', '',
               '每个样本各有一张 R=2、3、4 三面板图，原始与融合谱同时呈现；1×、2×、3× 理论位置在看谱峰前由存档物理目标值直接计算。图上的蓝点只标示基准 J 使用的实际基频峰。图片用于人工判断谐波联合表现，不引入多谐波 J。', '']
     for sample in samples:
         sid=sample['id']
         lines.append(f'- [{sid} 三谐波谱](figures/sensitivity/{sid}-three-harmonics.png)（[PDF](figures/sensitivity/{sid}-three-harmonics.pdf)）；[R 选择热图](figures/sensitivity/{sid}-selection-heatmap.png)（[PDF](figures/sensitivity/{sid}-selection-heatmap.pdf)）。')
+    lines += ['', '按三个预先给定的理论位置目视核查：CWRU 105、KA04、Ottawa I-A-2 和 XJTU 第 123 次快照的融合谱在 1×、2×、3× 附近均可见不同程度的局部响应；各谐波强弱与融合前并不一致，不能据此直接计算统一诊断准确率。XJTU 第 1 次快照的 1× 附近仅有较弱局部响应，2× 附近可见峰，但 3× 附近响应不连续，故窄窗口单峰有效不足以确认早期故障。各谱分别以自己的背景中位数归一化成 dB，图中两条曲线的绝对幅度不能直接当作能量保持率。', '']
     lines += ['', '## 数据与限制', '',
               '`J_SATURATION_SENSITIVITY.csv` 为固定 ±20% 搜索、动态背景的逐 R 结果；`TARGET_WINDOW_SENSITIVITY.csv` 为固定 Csat=10 的逐 R 结果；`JOINT_SENSITIVITY.csv` 为 6×6×两种背景的逐 R 结果。每行含实际峰、原始峰、理论目标、误差、物理分辨率、对比度、Qe、Qc、J、有效性、原因和最终 R。谱来自目标约束分支的已运行 MATLAB 产物，CSV 写出可能带来微小浮点差异。五个片段不能代表全量稳健性；本次没有重新检验 WVD 图或核心算法，也不根据36格挑选更高分设置。', '']
     path.write_text('\n'.join(lines))
