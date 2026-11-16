@@ -72,10 +72,13 @@ XJTU-SY 数据仅有每分钟顺序快照和标称工况，本报告用快照序
 
 原因统计见 `NO_VALID_R_CAUSES.csv`，按数据集、故障目标、轴承和 XJTU 寿命阶段分层。候选同时存在对比度不足和定位超限时列为混合原因，不强行归于单一物理机制。数值/执行失败与候选峰不足单列。
 
-- cwru：。
+- cwru：无。
 - paderborn：CONTRAST_NOT_ABOVE_BACKGROUND 1；ERROR_EXCEEDS_PHYSICAL_RESOLUTION 9。
 - ottawa：ERROR_EXCEEDS_PHYSICAL_RESOLUTION 105。
 - xjtu：CONTRAST_NOT_ABOVE_BACKGROUND 498；ERROR_EXCEEDS_PHYSICAL_RESOLUTION 4206；MIXED_CONTRAST_AND_RESOLUTION 1422。
+
+这里 `CONTRAST_NOT_ABOVE_BACKGROUND` 表示三个 R 的目标局部峰均不高于背景；`ERROR_EXCEEDS_PHYSICAL_RESOLUTION` 表示三个 R 的局部最大峰误差均超出实际观测长度对应的分辨尺度；`MIXED_CONTRAST_AND_RESOLUTION` 表示三个 R 的失败代码跨这两类。没有独立的最低 J 阈值，因此不得把这些窗口称为“仅因 J 太低而失败”。
+
 
 ## 重点观察
 
