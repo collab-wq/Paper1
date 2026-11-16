@@ -1,0 +1,39 @@
+name: Audit corrected full target run
+on:
+  push:
+    branches: [experiment/full-real-bpfo-bpfi-line-validation]
+    paths:
+      - '.github/workflows/full-real-bpfo-bpfi-audit.yml'
+      - 'scripts/audit_corrected_full.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43875075318
+          github-token: ${{ github.token }}
+          pattern: corrected-full-*
+          merge-multiple: true
+          path: collected
+      - run: python scripts/audit_corrected_full.py collected --out results/summary
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-full-coverage-audit
+          path: results/summary/
+      - name: Publish audited coverage
+        run: |
+          cp results/summary/REAL_DATA_FULL_RESULTS.csv .
+          cp results/summary/COVERAGE.csv .
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add REAL_DATA_FULL_RESULTS.csv COVERAGE.csv
+          git commit -m 'Publish corrected full-run coverage [skip ci]'
+          git push origin HEAD:experiment/full-real-bpfo-bpfi-line-validation
