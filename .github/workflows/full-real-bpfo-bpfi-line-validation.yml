@@ -1,0 +1,59 @@
+name: BPFO BPFI target gate
+on:
+  push:
+    branches: [experiment/full-real-bpfo-bpfi-line-validation]
+    paths:
+      - '.github/workflows/full-real-bpfo-bpfi-line-validation.yml'
+      - 'bearing_hypotheses.m'
+      - 'scripts/check_corrected_targets.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); verify_adaptive_band_selection; verify_target_informed_selection; verify_ottawa_order"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-target-self-check
+          path: |
+            results/adaptive-self-check/
+            results/target-informed-self-check/
+  three-cases:
+    needs: self-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq unar
+      - run: |
+          bash scripts/download_cwru.sh
+          PADERBORN_BEARINGS=KB24 bash scripts/download_paderborn.sh
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - uses: matlab-actions/run-command@v3
+        with:
+          command: >-
+            addpath('matlab');
+            main_Paper1('cwru','input/cwru/105.mat',1,'auto','BPFI',true,'inner');
+            main_Paper1('cwru','input/cwru/130.mat',1,'auto','BPFO',true,'outer');
+            main_Paper1('paderborn','input/paderborn/KB24/N15_M07_F10_KB24_1.mat',64001,'auto','BPFO',true,'composite');
+            main_Paper1('paderborn','input/paderborn/KB24/N15_M07_F10_KB24_1.mat',64001,'auto','BPFI',true,'composite')
+      - run: python scripts/check_corrected_targets.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: corrected-target-three-cases
+          path: |
+            results/adaptive-band-selection/
+            results/input_segments/
