@@ -1,5 +1,5 @@
-dataset,planned,result_rows,failed_rows,unaccounted
-cwru,36,36,0,0
-paderborn,36,36,0,0
-ottawa,366,366,0,0
-xjtu,10048,10048,0,0
+dataset,planned_windows,observed_windows,target_evaluations,missing_windows
+cwru,36,36,36,0
+paderborn,36,36,42,0
+ottawa,366,366,366,0
+xjtu,10048,10048,10048,0
