@@ -1,0 +1,48 @@
+name: Full real NO_VALID_R analysis
+on:
+  push:
+    branches: [experiment/full-real-bpfo-bpfi-line-validation]
+    paths:
+      - '.github/workflows/no-valid-r-analysis.yml'
+      - 'scripts/rebuild_corrected_manifests.py'
+      - 'scripts/analyze_no_valid_r.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43875075318
+          github-token: ${{ github.token }}
+          pattern: corrected-full-*
+          merge-multiple: true
+          path: collected
+      - run: python scripts/rebuild_corrected_manifests.py
+      - run: >-
+          python scripts/analyze_no_valid_r.py
+          --segments results/summary/SEGMENT_MANIFEST.csv
+          --sources results/summary/DATASET_MANIFEST.csv
+          --out results/summary
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: no-valid-r-analysis
+          path: results/summary/
+      - name: Publish verified tables and report
+        run: |
+          cp results/summary/SEGMENT_MANIFEST.csv .
+          cp results/summary/DATASET_MANIFEST.csv .
+          cp results/summary/NO_VALID_R_SUMMARY.csv .
+          cp results/summary/NO_VALID_R_CAUSES.csv .
+          cp results/summary/NO_VALID_R_ANALYSIS.md .
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add SEGMENT_MANIFEST.csv DATASET_MANIFEST.csv NO_VALID_R_SUMMARY.csv NO_VALID_R_CAUSES.csv NO_VALID_R_ANALYSIS.md
+          git commit -m 'Publish full-run NO_VALID_R analysis [skip ci]'
+          git push origin HEAD:experiment/full-real-bpfo-bpfi-line-validation
