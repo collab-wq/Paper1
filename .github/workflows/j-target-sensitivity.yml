@@ -1,0 +1,65 @@
+name: Paper1 J and target window sensitivity
+on:
+  push:
+    branches: [experiment/j-target-sensitivity]
+    paths:
+      - '.github/workflows/j-target-sensitivity.yml'
+      - 'scripts/analyze_j_target_sensitivity.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  archived-spectra-sensitivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43831825178
+          github-token: ${{ github.token }}
+          name: target-informed-cwru
+          path: staging/cwru
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43831825178
+          github-token: ${{ github.token }}
+          name: target-informed-paderborn
+          path: staging/paderborn
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43831825178
+          github-token: ${{ github.token }}
+          name: target-informed-ottawa
+          path: staging/ottawa
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 43831825178
+          github-token: ${{ github.token }}
+          name: target-informed-xjtu
+          path: staging/xjtu
+      - name: Reproduce MATLAB baseline and analyze archived spectra
+        run: |
+          python -m pip install --quiet numpy matplotlib
+          python scripts/analyze_j_target_sensitivity.py | tee sensitivity.log
+      - name: Upload numerical results and figures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: j-target-sensitivity-results
+          path: |
+            J_SATURATION_SENSITIVITY.csv
+            TARGET_WINDOW_SENSITIVITY.csv
+            JOINT_SENSITIVITY.csv
+            SENSITIVITY_REPORT.md
+            figures/sensitivity/
+            sensitivity.log
+          if-no-files-found: warn
+      - name: Commit verified sensitivity outputs
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add J_SATURATION_SENSITIVITY.csv TARGET_WINDOW_SENSITIVITY.csv JOINT_SENSITIVITY.csv SENSITIVITY_REPORT.md figures/sensitivity
+          git commit -m 'Publish archived-spectrum sensitivity analysis [skip ci]'
+          git push origin HEAD:experiment/j-target-sensitivity
