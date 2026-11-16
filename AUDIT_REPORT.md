@@ -145,3 +145,10 @@ MathJax 3.2.2 对正式文档的 122 处行内及独立数学表达式逐一解�
 代表图首次人工查看时发现三联候选谱的图例伸出右侧画布、理论频率文字压线，以及八联图第八格图例空间偏小；已仅调整图例与坐标显示并重新导出。初始发布运行 `43830520612` 与最终发布运行 `43831825178` 的七段候选数值逐行完全相同，说明这次修正只影响呈现。最终运行全部任务成功；发布脚本核验 13 对 PNG/PDF 的尺寸和 PDF 文件头。实际查看四套数据八联图、KB24 双目标图及四类候选谱后，理论线、实际峰、单位、标题与图例均在画布内，未见文字或曲线遮挡问题。早期 XJTU 无有效 R，只保存三联候选谱，不伪造最终八联图。
 
 **限制：**本阶段没有全量重算四套数据，也没有重新估计分工况诊断准确率；七次目标评价只验证选择规则、元数据传递、复合目标隔离、阶次物理尺度和代表性执行。已知目标类型用于下游评分，故不能据此宣称未知故障类型自主分类。XJTU 第 1 次快照的 `NO_VALID_R` 不应被后期同轴承的有效结果掩盖。
+
+### 本分支文件清单
+
+- 评价与绘图：`main_Paper1.m`、`run_adaptive_candidates.m`、`run_adaptive_order_candidates.m`、`select_optimal_band_count.m`、`write_adaptive_candidate_csv.m`、`write_order_candidate_csv.m`、`plot_target_candidate_spectra.m`。
+- 数据入口与元数据：`matlab/bearing_target_metadata.m`、`matlab/run_cwru_full_batch.m`、`matlab/run_paderborn_full_batch.m`、`matlab/run_ottawa_batch.m`、`matlab/run_xjtu_lifetime_batch.m`、`matlab/run_adaptive_validation.m`、`matlab/record_segment_failure.m`。`scripts/download_paderborn.sh` 仅增加按需选择轴承的入口，原下载来源及 SHA 不变。
+- 自检与发布：`matlab/verify_adaptive_band_selection.m`、`matlab/verify_target_informed_selection.m`、`scripts/check_target_trials.py`、`scripts/publish_target_figures.py`、`.github/workflows/target-informed-self-check.yml`、`.github/workflows/future-real-validation.yml`。
+- 文档与图片：`AGENTS.md`、`METHOD.md`、`ALGORITHM.md`、`README.md`、`RESULTS.md`、`AUDIT_REPORT.md` 及 `figures/target-informed/` 下的 13 对代表性 PNG/PDF。原 `FINAL_RESULTS.md`、全量 CSV、正式 `main` 和来源校验文件均未改写。
