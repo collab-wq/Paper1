@@ -1,29 +1,41 @@
-# Target and harmonic mechanism diagnostic
+# 目标峰与共振频带机制定位实验
 
-This is a retrospective mechanism test on 15 previously NO_VALID_R windows. It is not a revised production accuracy estimate.
+## 范围与复现
 
-## Execution and definitions
+本实验仅使用 [`DIAGNOSTIC_WINDOWS.csv`](DIAGNOSTIC_WINDOWS.csv) 中 15 个原先为 `NO_VALID_R` 的物理窗口：Ottawa 外圈 6 个，XJTU-SY 内圈 4 个、外圈 5 个。窗口的起止样本、理论目标、原始片段及来源 SHA-256、原运行结果路径均在清单中。全部源文件下载后核对 SHA-256。云端 MATLAB R2026b + Signal Processing Toolbox 的[实际运行](https://github.com/collab-wq/Paper1/actions/runs/44044366421)完成 15/15 个窗口，且每窗口仅执行一次 `wvd`；既有主程序、阈值、融合和 J 定义未改动。数据是特意挑选的低有效率样本，不能外推为四套数据的总体准确率。
 
-Each source window is processed with one WVD call. The unchanged dual-direction detector and mask are rerun for all combinations of 2, 3 or 4 bands among up to eight eligible candidates. If the fixed original search and spacing rules yield fewer than eight candidates, only actual candidates are enumerated. Current top-R combinations are marked `baseline`; all other combinations are post hoc diagnostics. Local peaks use the original search interval, background median and physical resolution. A valid peak must simultaneously satisfy contrast > 1 and error <= resolution. Among valid peaks, the highest J is reported. Two-line evidence requires fundamental plus second or third harmonic; three-line evidence requires all three.
+前 R 频带仍按原有 WVD 幅值活动谱、平滑、峰距和半宽确定。本次展示最多前 8 个**实际存在**的候选；15 段中有 10 段找到 8 个、3 段找到 7 个、1 段找到 6 个、1 段找到 5 个，并未填充虚假频带。对 2、3、4 带的全部可用组合共实际计算 **1,888 组**。当前排名前 R 的组合标为 `baseline`；其余组合仅作事后机制诊断。
 
-## Sample results
+局部峰在事先固定的理论基频及 2×、3× 位置的 ±20% 内搜索。每个峰沿用旧代码的背景中位数、线性功率对比度与物理分辨率；**同一个峰**须同时满足 $C>1$、定位误差 $e\leq\Delta$。多个合格峰保留在 [`TARGET_HARMONIC_PEAKS.csv`](TARGET_HARMONIC_PEAKS.csv)，代表峰取合格峰中 J 最大者。两条谱线证据要求基频与二、三倍频之一均有效；三条谱线要求三者均有效。Ottawa 采用编码器角域、阶次和 $1/\Delta N_{\mathrm{rev}}$；XJTU 使用 Hz 和 $f_s/N$。两种定位误差从不混算。
 
-| Dataset | Bearing / condition | Windows | Old valid | New fundamental | Two-line | Three-line | Extended fundamental |
+## 同窗口结果
+
+下表的“新方法”和“联合证据”仅对应**原有前 R 频带**，三个 R 中任意一个满足即计该窗口一次；“扩展基频”表示至少一组包含排名 5–8 频带的事后组合出现有效基频。
+
+| 数据集 | 轴承/工况 | 窗口 | 旧最高峰有效 | 全部局部峰基频有效 | 两条谱线 | 三条谱线 | 扩展基频 |
 |---|---|---:|---:|---:|---:|---:|---:|
-| ottawa | O-A-2 | 2 | 0 | 1 | 1 | 0 | 2 |
-| ottawa | O-B-2 | 2 | 0 | 1 | 1 | 1 | 2 |
-| ottawa | O-C-2 | 2 | 0 | 2 | 1 | 0 | 2 |
-| xjtu | Bearing1_2 | 1 | 0 | 1 | 0 | 0 | 1 |
-| xjtu | Bearing1_3 | 1 | 0 | 1 | 1 | 0 | 1 |
-| xjtu | Bearing2_1 | 2 | 0 | 0 | 0 | 0 | 2 |
-| xjtu | Bearing2_2 | 1 | 0 | 1 | 1 | 0 | 1 |
-| xjtu | Bearing3_1 | 2 | 0 | 2 | 2 | 0 | 2 |
-| xjtu | Bearing3_4 | 2 | 0 | 2 | 1 | 0 | 2 |
+| Ottawa | O-A-2 | 2 | 0 | 1 | 1 | 0 | 2 |
+| Ottawa | O-B-2 | 2 | 0 | 1 | 1 | 1 | 2 |
+| Ottawa | O-C-2 | 2 | 0 | 2 | 1 | 0 | 2 |
+| XJTU | Bearing2_1（内圈） | 2 | 0 | 0 | 0 | 0 | 2 |
+| XJTU | Bearing3_4（内圈） | 2 | 0 | 2 | 1 | 0 | 2 |
+| XJTU | Bearing3_1（外圈） | 2 | 0 | 2 | 2 | 0 | 2 |
+| XJTU | Bearing1_2（外圈早期） | 1 | 0 | 1 | 0 | 0 | 1 |
+| XJTU | Bearing1_3（外圈早期） | 1 | 0 | 1 | 1 | 0 | 1 |
+| XJTU | Bearing2_2（外圈早期） | 1 | 0 | 1 | 1 | 0 | 1 |
+| **合计** | | **15** | **0** | **11** | **8** | **1** | **15** |
 
-Across 15 windows, the old top-R method validates 0, the all-local-peak search on the same top-R bands validates 11, and 15 have at least one post hoc combination containing rank 5–8 with a valid fundamental.
+逐组合和逐窗口计数见 [`BAND_COMBINATION_DIAGNOSTICS.csv`](BAND_COMBINATION_DIAGNOSTICS.csv)、[`TARGET_HARMONIC_SUMMARY.csv`](TARGET_HARMONIC_SUMMARY.csv)。旧最高峰法在这 15 段均再次得到无效，与历史 JSON 一致。45 组原有 R 候选中，有 6 组的旧最高格点位于搜索区间边界，因而并非区间内部局部峰；这说明“全部局部峰”与“区间最高格点”确实是不同的判定方法，不代表原始数据不一致。
 
-A post hoc valid combination is evidence that resonance ranking can omit useful bands in these windows. It does not establish an online band-selection rule. Fundamental evidence alone is not sufficient to claim full fault recognition. See the two-line and three-line columns and per-peak CSV.
+## 机制分析
 
-## Source and reproducibility
+1. **目标峰搜索导致漏判。** 在完全相同的前 R 频带、WVD、背景和分辨率下，15 段中 11 段存在旧最高峰法未认可、但有合格局部峰的基频证据。Ottawa 为 4/6，XJTU 内圈为 2/4，XJTU 外圈为 5/5。例如 D01 的旧 R=4 最高峰在 4.0234 阶，距理论 3.57 阶为 0.4534 阶；全部局部峰法在相同 R 找到误差 0.0778 阶、对比度 7.91 的有效峰。高干扰峰不应自动否定这个较低但合格的目标峰。
+2. **共振带排名也有遗漏。** 对前 R 仍无有效基频的 D02、D03、D07、D08，包含排名 5–8 的事后组合均找到有效基频。特别是内圈 Bearing2_1 的两段仅在扩展组合中得到基频，但这两段均没有同时通过高次谐波，因此不能仅凭此宣称完整故障特征识别。全部 15 段在某个扩展组合中都有有效基频；其中 12 段可找到两条谱线，7 段可找到三条谱线。这些是**事后组合的上界**，绝非当前在线选带算法的有效率。
+3. **增加频带不保证改善。** 在已有前 R 有效的 11 段中，限定含排名 5–8 的最佳事后组合有 8 段 J 更高、1 段持平、2 段更低。J 的饱和对比度规则未变；单独比较最大对比度也不能替代定位和谐波检查。
+4. **数据集差异。** Ottawa 外圈同时有最高峰漏判与频带遗漏；前 R 的两条谱线为 3/6、三条谱线为 1/6。XJTU 内圈 Bearing2_1 主要表现为前 R 选带不足且高次证据仍弱，Bearing3_4 则主要是旧最高峰漏判。XJTU 外圈五段均通过全部局部峰基频测试，但只有四段具备两条谱线，故基频通过不等于完整诊断成功。
 
-Window IDs, segment hashes, source hashes, channels and original result paths are in `DIAGNOSTIC_WINDOWS.csv`. Candidate centers and boundaries, every local peak, and each band combination are preserved in the corresponding CSV. MATLAB logs and per-window plots are in the GitHub Actions Artifact. Ottawa errors are in order; XJTU errors are in Hz. No full-data rerun was performed.
+## 图件、核查与限制
+
+每段保存一张完整 WVD 共振活动谱图（平滑前后、实际候选峰 1–8 与带边界）及前 R 的三张原始/融合周期谱对照图；均有 300 dpi PNG 和矢量 PDF，位于 [`figures/target-harmonic-diagnostics/`](figures/target-harmonic-diagnostics/)。周期谱先标理论基频及 2×、3× 位置，再标全部候选局部峰；圆圈为合格、叉号为不合格。各窗口 MATLAB 日志和中间结果保存在上述 Actions 运行的 Artifacts。候选中心及边界见 [`RESONANCE_CANDIDATES_TOP8.csv`](RESONANCE_CANDIDATES_TOP8.csv)。
+
+本实验没有改变正式 R 选择规则，也没有据事后最优组合提出新的在线算法。三阶谐波较少通过，故不能把 11/15 的基频漏判修正直接解释为 11/15 的故障诊断成功。局部峰和共振带排序是两个可实证区分的机制；需要另行设计并验证在线规则后，才能讨论正式算法的改进。
