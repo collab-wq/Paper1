@@ -1,0 +1,10 @@
+dataset,bearing_or_condition,windows,old_valid,new_fundamental_valid,second_valid,third_valid,two_line_valid,three_line_valid,extended_fundamental_valid,extended_two_line_valid,extended_three_line_valid
+ottawa,O-A-2,2,0,1,2,1,1,0,2,2,2
+ottawa,O-B-2,2,0,1,2,2,1,1,2,2,2
+ottawa,O-C-2,2,0,2,1,0,1,0,2,2,1
+xjtu,Bearing1_2,1,0,1,0,0,0,0,1,0,0
+xjtu,Bearing1_3,1,0,1,1,0,1,0,1,1,0
+xjtu,Bearing2_1,2,0,0,0,0,0,0,2,0,0
+xjtu,Bearing2_2,1,0,1,1,0,1,0,1,1,0
+xjtu,Bearing3_1,2,0,2,2,1,2,0,2,2,1
+xjtu,Bearing3_4,2,0,2,1,0,1,0,2,2,1
