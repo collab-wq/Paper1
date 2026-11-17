@@ -2,7 +2,9 @@ name: Publish target harmonic diagnostic figures
 on:
   push:
     branches: [experiment/target-harmonic-band-diagnostics]
-    paths: ['.github/workflows/publish-target-harmonic-figures.yml']
+    paths:
+      - '.github/workflows/publish-target-harmonic-figures.yml'
+      - 'scripts/plot_diagnostic_spectra.py'
   workflow_dispatch:
 permissions:
   contents: write
@@ -57,6 +59,10 @@ jobs:
           assert len(list(out.glob('*.png')))==60 and len(list(out.glob('*.pdf')))==60
           print('IMAGE_PAIR_CHECK_PASS 60 PNG 60 PDF')
           PY
+      - name: Replot spectra from saved curves
+        run: |
+          python -m pip install --quiet numpy matplotlib
+          python scripts/plot_diagnostic_spectra.py
       - name: Commit final images
         run: |
           git config user.name 'github-actions[bot]'
