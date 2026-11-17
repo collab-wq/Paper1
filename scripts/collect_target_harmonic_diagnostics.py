@@ -17,7 +17,10 @@ def read(name):
 tops=read('RESONANCE_CANDIDATES_TOP8.csv')
 peaks=read('TARGET_HARMONIC_PEAKS.csv')
 combos=read('BAND_COMBINATION_DIAGNOSTICS.csv')
-assert len(tops)==120 and len(combos)==15*(28+56+70)
+assert len({r['window_id'] for r in tops})==15
+assert all(4<=sum(r['window_id']==w for r in tops)<=8 for w in {r['window_id'] for r in tops})
+assert len(combos)==sum(__import__('math').comb(sum(r['window_id']==w for r in tops),n)
+    for w in {r['window_id'] for r in tops} for n in (2,3,4))
 for filename,rows in [('RESONANCE_CANDIDATES_TOP8.csv',tops),
                       ('TARGET_HARMONIC_PEAKS.csv',peaks),
                       ('BAND_COMBINATION_DIAGNOSTICS.csv',combos)]:
@@ -55,7 +58,7 @@ tot={k:sum(r[k] for r in out) for k in out[0] if k.endswith('_valid')}
 lines=['# Target and harmonic mechanism diagnostic','',
        'This is a retrospective mechanism test on 15 previously NO_VALID_R windows. It is not a revised production accuracy estimate.', '',
        '## Execution and definitions','',
-       'Each source window is processed with one WVD call. The unchanged dual-direction detector and mask are rerun for all 154 combinations of 2, 3 or 4 bands among the top eight. Current top-R combinations are marked `baseline`; all other combinations are post hoc diagnostics. Local peaks use the original search interval, background median and physical resolution. A valid peak must simultaneously satisfy contrast > 1 and error <= resolution. Among valid peaks, the highest J is reported. Two-line evidence requires fundamental plus second or third harmonic; three-line evidence requires all three.', '',
+       'Each source window is processed with one WVD call. The unchanged dual-direction detector and mask are rerun for all combinations of 2, 3 or 4 bands among up to eight eligible candidates. If the fixed original search and spacing rules yield fewer than eight candidates, only actual candidates are enumerated. Current top-R combinations are marked `baseline`; all other combinations are post hoc diagnostics. Local peaks use the original search interval, background median and physical resolution. A valid peak must simultaneously satisfy contrast > 1 and error <= resolution. Among valid peaks, the highest J is reported. Two-line evidence requires fundamental plus second or third harmonic; three-line evidence requires all three.', '',
        '## Sample results','',
        '| Dataset | Bearing / condition | Windows | Old valid | New fundamental | Two-line | Three-line | Extended fundamental |',
        '|---|---|---:|---:|---:|---:|---:|---:|']

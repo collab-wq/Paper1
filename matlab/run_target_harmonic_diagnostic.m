@@ -42,10 +42,10 @@ df=median(diff(f)); profile=mean(abs(W),2);
 smoothed=movmean(profile,max(3,round(choice.smoothHz/df)));
 ranked=find_resonance_candidates(W,f,choice.smoothHz,choice.lowerHz, ...
     choice.upperHz,choice.minDistanceHz);
-assert(numel(ranked)>=8,'Fewer than eight eligible resonance candidates');
-ranked=ranked(1:8); assert(all(diff(ranked)~=0));
+assert(numel(ranked)>=4,'Fewer than four eligible resonance candidates');
+ranked=ranked(1:min(8,numel(ranked))); assert(all(diff(ranked)~=0));
 peakRows=table();comboRows=table();candidateRows=table();
-for r=1:8
+for r=1:numel(ranked)
     center=ranked(r);
     candidateRows=[candidateRows;table(string(item.window_id),r,center, ...
         center-choice.halfwidthHz,center+choice.halfwidthHz, ...
@@ -54,7 +54,7 @@ for r=1:8
 end
 plot_resonances(f,profile,smoothed,ranked,choice,item,out);
 for R=2:4
-    combinations=nchoosek(1:8,R);
+    combinations=nchoosek(1:numel(ranked),R);
     for ci=1:size(combinations,1)
         ranks=combinations(ci,:); centers=sort(ranked(ranks));
         bands=[centers-choice.halfwidthHz,centers+choice.halfwidthHz];
@@ -118,6 +118,7 @@ writetable(candidateRows,fullfile(out,'RESONANCE_CANDIDATES_TOP8.csv'));
 writetable(peakRows,fullfile(out,'TARGET_HARMONIC_PEAKS.csv'));
 writetable(comboRows,fullfile(out,'BAND_COMBINATION_DIAGNOSTICS.csv'));
 summary=struct('window_id',char(item.window_id),'WVD_calls',1, ...
+    'available_resonance_candidates',numel(ranked), ...
     'combinations',height(comboRows),'baseline_old_valid',any(comboRows.old_valid(comboRows.baseline)), ...
     'baseline_new_valid',any(comboRows.fundamental_valid(comboRows.baseline)), ...
     'extended_any_valid',any(comboRows.fundamental_valid), ...
@@ -134,7 +135,7 @@ end
 function plot_resonances(f,raw,smooth,ranked,choice,item,out)
 fig=figure('Visible','off','Units','inches','Position',[0 0 13 6]);
 plot(f,raw,'Color',[.5 .5 .5]);hold on;plot(f,smooth,'b','LineWidth',1.2);
-for i=1:8
+for i=1:numel(ranked)
     xline(ranked(i),'r--',sprintf('%d',i));
     xline(ranked(i)-choice.halfwidthHz,':','Color',[.6 .6 .6]);
     xline(ranked(i)+choice.halfwidthHz,':','Color',[.6 .6 .6]);
