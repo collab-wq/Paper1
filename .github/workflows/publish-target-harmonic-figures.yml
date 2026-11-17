@@ -1,0 +1,46 @@
+name: Publish target harmonic diagnostic figures
+on:
+  push:
+    branches: [experiment/target-harmonic-band-diagnostics]
+    paths: ['.github/workflows/publish-target-harmonic-figures.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 44044366421
+          github-token: ${{ github.token }}
+          pattern: diagnostic-D*
+          path: staging
+      - name: Check and collect all executed image pairs
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          out=Path('figures/target-harmonic-diagnostics');out.mkdir(parents=True,exist_ok=True)
+          for i in range(1,16):
+              name=f'D{i:02d}'
+              paths=list(Path('staging').rglob(f'diagnostic-{name}'))
+              assert len(paths)==1,(name,paths)
+              src=paths[0]
+              for stem in ('resonance-top8','spectrum-R2','spectrum-R3','spectrum-R4'):
+                  for ext in ('.png','.pdf'):
+                      data=(src/(stem+ext)).read_bytes()
+                      assert data.startswith(b'\x89PNG') if ext=='.png' else data.startswith(b'%PDF')
+                      (out/f'{name}-{stem}{ext}').write_bytes(data)
+          assert len(list(out.glob('*.png')))==60 and len(list(out.glob('*.pdf')))==60
+          print('IMAGE_PAIR_CHECK_PASS 60 PNG 60 PDF')
+          PY
+      - name: Commit final images
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add figures/target-harmonic-diagnostics/
+          git commit -m 'Publish executed harmonic diagnostic figures [skip ci]'
+          git push origin HEAD:experiment/target-harmonic-band-diagnostics
