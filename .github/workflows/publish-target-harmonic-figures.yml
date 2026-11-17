@@ -15,10 +15,30 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          run-id: 44044366421
+          run-id: 44050795063
           github-token: ${{ github.token }}
           pattern: diagnostic-D*
           path: staging
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 44050795063
+          github-token: ${{ github.token }}
+          name: target-harmonic-diagnostics-complete
+          path: verified
+      - name: Confirm numerical records are unchanged
+        run: |
+          python - <<'PY'
+          import csv
+          from collections import Counter
+          from pathlib import Path
+          for name in ('RESONANCE_CANDIDATES_TOP8.csv','TARGET_HARMONIC_PEAKS.csv',
+                       'BAND_COMBINATION_DIAGNOSTICS.csv','TARGET_HARMONIC_SUMMARY.csv'):
+              def rows(path):
+                  with path.open(newline='') as f:
+                      return Counter(tuple(sorted(r.items())) for r in csv.DictReader(f))
+              assert rows(Path(name))==rows(Path('verified')/name),name
+              print('NUMERICAL_REPRODUCTION_PASS',name)
+          PY
       - name: Check and collect all executed image pairs
         run: |
           python - <<'PY'
