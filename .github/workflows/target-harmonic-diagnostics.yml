@@ -1,0 +1,98 @@
+name: Target harmonic and resonance diagnostic
+on:
+  push:
+    branches: [experiment/target-harmonic-band-diagnostics]
+    paths:
+      - '.github/workflows/target-harmonic-diagnostics.yml'
+      - 'matlab/diagnostic_local_peaks.m'
+      - 'matlab/run_target_harmonic_diagnostic.m'
+      - 'scripts/select_diagnostic_windows.py'
+      - 'scripts/collect_target_harmonic_diagnostics.py'
+      - 'DIAGNOSTIC_WINDOWS.csv'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - uses: matlab-actions/run-command@v3
+        with:
+          command: >-
+            addpath('matlab');
+            a=(0:.01:12)'; p=ones(size(a)); p(100)=100; p(101)=2; p(102)=4;
+            [v,~,s]=diagnostic_local_peaks(a,p,1,.02,'order','original');
+            assert(strcmp(s,'VALID') && any([v.valid]));
+            assert(~isempty(which('wvd')) && ~isempty(which('hilbert')));
+      - run: python scripts/select_diagnostic_windows.py && git diff --exit-code DIAGNOSTIC_WINDOWS.csv
+  diagnostic:
+    needs: self-check
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        window: [D01,D02,D03,D04,D05,D06,D07,D08,D09,D10,D11,D12,D13,D14,D15]
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Obtain one verified source record
+        run: |
+          python - <<'PY'
+          import csv,hashlib,pathlib,subprocess,urllib.request
+          row=next(r for r in csv.DictReader(open('DIAGNOSTIC_WINDOWS.csv')) if r['window_id']=='${{ matrix.window }}')
+          path=pathlib.Path(row['source_file'])
+          if row['dataset']=='xjtu':
+              subprocess.run(['python','scripts/download_xjtu.py','--bearing',row['bearing_or_condition'],'--snapshot',path.stem,'--fetch'],check=True)
+          else:
+              path.parent.mkdir(parents=True,exist_ok=True)
+              urllib.request.urlretrieve(row['source_url'],path)
+          actual=hashlib.sha256(path.read_bytes()).hexdigest()
+          assert actual==row['source_sha256'],(actual,row['source_sha256'])
+          print('SOURCE_SHA256_PASS',row['window_id'],actual)
+          PY
+      - uses: matlab-actions/setup-matlab@v3
+        with:
+          products: Signal_Processing_Toolbox
+      - uses: matlab-actions/run-command@v3
+        with:
+          command: "addpath('matlab'); run_target_harmonic_diagnostic('${{ matrix.window }}')"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: diagnostic-${{ matrix.window }}
+          path: results/target-harmonic-diagnostics/${{ matrix.window }}/
+          retention-days: 90
+  collect:
+    needs: diagnostic
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: diagnostic-*
+          path: staging
+      - run: python scripts/collect_target_harmonic_diagnostics.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: target-harmonic-diagnostics-complete
+          path: |
+            DIAGNOSTIC_WINDOWS.csv
+            RESONANCE_CANDIDATES_TOP8.csv
+            TARGET_HARMONIC_PEAKS.csv
+            BAND_COMBINATION_DIAGNOSTICS.csv
+            TARGET_HARMONIC_SUMMARY.csv
+            TARGET_HARMONIC_DIAGNOSTICS.md
+            staging/
+      - name: Publish results on experiment branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add RESONANCE_CANDIDATES_TOP8.csv TARGET_HARMONIC_PEAKS.csv BAND_COMBINATION_DIAGNOSTICS.csv TARGET_HARMONIC_SUMMARY.csv TARGET_HARMONIC_DIAGNOSTICS.md
+          git commit -m 'Publish executed target harmonic diagnostics [skip ci]'
+          git push origin HEAD:experiment/target-harmonic-band-diagnostics
