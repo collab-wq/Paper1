@@ -110,6 +110,9 @@ for R=2:4
             'fundamental_valid','second_harmonic_valid','third_harmonic_valid', ...
             'two_line_valid','three_line_valid','selected_peak','selected_contrast','selected_error','selected_J'})]; %#ok<AGROW>
         if baseline
+            writetable(table(axis,rawPower,power, ...
+                'VariableNames',{'repetition_axis','original_power','fused_power'}), ...
+                fullfile(out,sprintf('spectrum-R%d.csv',R)));
             plot_spectra(axis,rawPower,power,theory,delta,unit,R,ranks,item,out);
         end
     end
@@ -135,13 +138,14 @@ end
 function plot_resonances(f,raw,smooth,ranked,choice,item,out)
 fig=figure('Visible','off','Units','inches','Position',[0 0 13 6]);
 plot(f,raw,'Color',[.5 .5 .5]);hold on;plot(f,smooth,'b','LineWidth',1.2);
+set(gca,'Position',[.12 .16 .82 .70]);
 for i=1:numel(ranked)
     xline(ranked(i),'r--',sprintf('%d',i));
     xline(ranked(i)-choice.halfwidthHz,':','Color',[.6 .6 .6]);
     xline(ranked(i)+choice.halfwidthHz,':','Color',[.6 .6 .6]);
 end
 xlim([choice.lowerHz choice.upperHz]);xlabel('WVD frequency (Hz)');ylabel('Mean |WVD|');
-title(sprintf('%s resonance candidates: ranks 1-4 current, 5-8 diagnostic',item.window_id));
+title(sprintf('%s resonance candidates: ranks 1-4 used by current R choices; 5-8 diagnostic',item.window_id));
 legend({'Raw activity','Smoothed activity'},'Location','best');grid on;
 exportgraphics(fig,fullfile(out,'resonance-top8.png'),'Resolution',300);
 exportgraphics(fig,fullfile(out,'resonance-top8.pdf'),'ContentType','vector');close(fig);
@@ -152,6 +156,7 @@ fig=figure('Visible','off','Units','inches','Position',[0 0 13 6]);
 upper=min(max(axis),3.5*theory);shown=axis>=0 & axis<=upper;
 plot(axis(shown),raw(shown),'Color',[.4 .4 .4]);hold on;
 plot(axis(shown),power(shown),'Color',[0 .35 .7]);
+set(gca,'Position',[.16 .16 .78 .70],'YScale','log');
 for h=1:3
     expected=h*theory;
     if expected>max(axis),continue;end
@@ -162,7 +167,12 @@ for h=1:3
         plot(peaks(k).position,peaks(k).power,marker,'Color',[.1 .5 .15]);
     end
 end
-xlim([0 upper]);xlabel(['Repetition ' unit]);ylabel('Periodicity power (linear)');
+visible=[raw(shown);power(shown)];visible=visible(isfinite(visible)&visible>0);
+ylim([max(min(visible),max(visible)*1e-7) max(visible)*10]);
+xlim([0 upper]);
+if strcmp(unit,'order'),xlabel('Repetition order');
+else,xlabel('Repetition frequency (Hz)');end
+ylabel('Periodicity power (log scale)');
 title(sprintf('%s R=%d ranks=%s; circles valid, crosses invalid',item.window_id,R,mat2str(ranks)));
 legend({'Original','Fused'},'Location','best');grid on;
 exportgraphics(fig,fullfile(out,sprintf('spectrum-R%d.png',R)),'Resolution',300);

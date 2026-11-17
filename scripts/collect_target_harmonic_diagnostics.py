@@ -68,6 +68,7 @@ lines+=['',f"Across 15 windows, the old top-R method validates {tot['old_valid']
        'A post hoc valid combination is evidence that resonance ranking can omit useful bands in these windows. It does not establish an online band-selection rule. Fundamental evidence alone is not sufficient to claim full fault recognition. See the two-line and three-line columns and per-peak CSV.', '',
        '## Source and reproducibility','',
        'Window IDs, segment hashes, source hashes, channels and original result paths are in `DIAGNOSTIC_WINDOWS.csv`. Candidate centers and boundaries, every local peak, and each band combination are preserved in the corresponding CSV. MATLAB logs and per-window plots are in the GitHub Actions Artifact. Ottawa errors are in order; XJTU errors are in Hz. No full-data rerun was performed.']
-Path('TARGET_HARMONIC_DIAGNOSTICS.md').write_text('\n'.join(lines)+'\n')
+if not Path('TARGET_HARMONIC_DIAGNOSTICS.md').exists():
+    Path('TARGET_HARMONIC_DIAGNOSTICS.md').write_text('\n'.join(lines)+'\n')
 print(json.dumps({'windows':len(out),'combinations':len(combos),'baseline_old_valid':tot['old_valid'],
                   'baseline_new_valid':tot['new_fundamental_valid'],'extended_valid':tot['extended_fundamental_valid']}))
